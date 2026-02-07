@@ -2,6 +2,8 @@
 # Import FastAPI class from the fastapi library
 # FastAPI is the framework we use to build our backend APIs
 from fastapi import FastAPI
+# Import UploadFile and File to handle file uploads
+from fastapi import UploadFile, File
 
 # Create an instance of the FastAPI application
 # This 'app' object represents our backend server
@@ -32,3 +34,25 @@ def health_check():
         "status": "DocuGuard is running"
     }
 
+# This endpoint allows users to upload a document file
+@app.post("/upload")
+def upload_document(file: UploadFile = File(...)):
+    """
+    Upload document endpoint.
+
+    This endpoint:
+    - Accepts a file from the user
+    - Does NOT analyze it yet
+    - Simply confirms the file was received
+
+    This is the first step toward document analysis.
+    """
+
+    # Get the uploaded file name
+    filename = file.filename
+
+    # Return a simple confirmation response
+    return {
+        "message": "File uploaded successfully",
+        "filename": filename
+    }

@@ -8,6 +8,12 @@ from fastapi import UploadFile, File
 from pathlib import Path
 import uuid
 
+# To return proper HTTP error messages
+from fastapi import HTTPException
+
+# Library to read .docx files
+from docx import Document
+
 
 # Create an instance of the FastAPI application
 # This 'app' object represents our backend server
@@ -19,6 +25,13 @@ app = FastAPI(
 
 # Folder where uploaded files will be stored
 UPLOAD_DIR = Path("backend/uploads")
+def extract_text_from_docx(file_path: Path) -> str:
+    """
+    Extract all text from a .docx file and return it as a single string.
+    """
+    doc = Document(str(file_path))
+    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+    return "\n".join(paragraphs)
 
 # Ensure the upload directory exists
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -88,3 +101,42 @@ async def upload_document(file: UploadFile = File(...)):
         "stored_path": str(stored_path)
          
 }
+
+@app.post("/extract-text/{stored_filename}")
+def extract_text(stored_filename: str):
+    """
+    Extract text from a previously uploaded file.
+
+    For now, we support:
+    - .docx (Word documents)
+    - .txt  (plain text)
+
+    Later we will add:
+    - PDF extraction
+    """
+    file_path = UPLOAD_DIR / stored_filename
+
+    # If file does not exist, return a 404 error
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Detect file type by extension
+    ext = file_path.suffix.lower()
+
+    if ext == ".docx":
+        text = extract_text_from_docx(file_path)
+    elif ext == ".txt":
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type for text extraction (supported: .docx, .txt)"
+        )
+
+    # Return extracted text (we'll store it in DB in next steps)
+    return {
+        "stored_filename": stored_filename,
+        "characters": len(text),
+        "preview": text[:500],   # show only first 500 chars
+        "text": text             # full text (ok for now; later we may not return full)
+    }

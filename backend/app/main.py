@@ -16,6 +16,19 @@ from docx import Document
 # PDF reader library (for text-based PDFs)
 from pypdf import PdfReader
 
+from backend.app.db.database import Base, engine
+from backend.app.db import models  # noqa: F401
+
+# SQLAlchemy session for DB operations
+from sqlalchemy.orm import Session
+
+# FastAPI dependency injection helper
+from fastapi import Depends
+
+# Our DB session provider + models
+from backend.app.db.database import get_db
+from backend.app.db.models import Document, AnalysisReport
+
 
 # Create an instance of the FastAPI application
 # This 'app' object represents our backend server
@@ -24,6 +37,7 @@ app = FastAPI(
     description="HR Policy Compliance Analyzer Backend",
     version="0.1.0"
 )
+Base.metadata.create_all(bind=engine)
 
 # Folder where uploaded files will be stored
 UPLOAD_DIR = Path("backend/uploads")
@@ -179,49 +193,55 @@ def health_check():
     }
 
 # This endpoint allows users to upload a document file
+
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
     """
     Upload document endpoint.
 
-    What this does:
-    1) Receives a file from the client (PDF/text/etc.)
-    2) Saves it to backend/uploads/
-    3) Returns the saved file name and path
-
-    Why we save the file:
-    - Next steps (text extraction + ML) need access to the document contents.
+    1) Save file to disk
+    2) Insert document metadata into DB
+    3) Return document_id + file info
     """
 
-    # Create a unique ID so files don't overwrite each other
-    # Example: "3f2a9c1d9c0b4a1aa2f8f0d2c0e5c8e3"
+    # Generate unique file name
     unique_id = uuid.uuid4().hex
-
-    # Get the original file extension (e.g., ".pdf", ".txt")
-    # If extension is missing, we keep it empty safely
     original_name = file.filename or "uploaded_file"
     ext = Path(original_name).suffix
 
-    # Build a safe stored filename like: "3f2a...e3.pdf"
     stored_filename = f"{unique_id}{ext}"
-
-    # Create the full path where we will save the file
     stored_path = UPLOAD_DIR / stored_filename
 
-    # Read the uploaded file content into memory
+    # Save file to disk
     contents = await file.read()
-
-    # Write bytes to disk
     stored_path.write_bytes(contents)
 
-    # Return a clean response
+    # ---------------------------
+    # SAVE DOCUMENT TO DATABASE
+    # ---------------------------
+    doc = Document(
+        original_filename=original_name,
+        stored_filename=stored_filename,
+        file_type=ext.lstrip(".") if ext else "unknown",
+    )
+
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)  # This populates doc.id
+
+    # Return response including DB ID
     return {
         "message": "File uploaded and saved",
+        "document_id": doc.id,
         "original_filename": original_name,
         "stored_filename": stored_filename,
-        "stored_path": str(stored_path)
-         
-}
+        "stored_path": str(stored_path),
+    }
+
+
 
 @app.post("/extract-text/{stored_filename}")
 def extract_text(stored_filename: str):
@@ -265,23 +285,19 @@ def extract_text(stored_filename: str):
     }
 
 @app.post("/analyze/{stored_filename}")
-def analyze_document(stored_filename: str):
+def analyze_document(
+    stored_filename: str,
+    db: Session = Depends(get_db)
+):
     """
-    Analyze an uploaded document and return a simple compliance report.
-
-    V1 (rule-based):
-    - Checks if key HR sections are missing
-    - Counts vague/risky phrases
+    Analyze uploaded document and save report to DB.
     """
 
-    # Build the path to the uploaded file
     file_path = UPLOAD_DIR / stored_filename
 
-    # If file does not exist, return a 404 error
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
-    # Extract text based on file extension
     ext = file_path.suffix.lower()
 
     if ext == ".docx":
@@ -291,27 +307,49 @@ def analyze_document(stored_filename: str):
     elif ext == ".txt":
         text = file_path.read_text(encoding="utf-8", errors="ignore")
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type for analysis (supported: .docx, .pdf, .txt)"
-        )
+        raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    # Run rule-based checks
+    # Run analysis
     missing_sections = find_missing_sections(text)
     risky_phrase_counts = count_risky_phrases(text)
-
     risk_score = calculate_risk_score(missing_sections, risky_phrase_counts)
 
+    # -----------------------------------
+    # FIND DOCUMENT IN DATABASE
+    # -----------------------------------
+    doc = db.query(Document).filter(
+        Document.stored_filename == stored_filename
+    ).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found in DB")
+
+    # -----------------------------------
+    # SAVE REPORT TO DATABASE
+    # -----------------------------------
+    report = AnalysisReport(
+        document_id=doc.id,
+        risk_score=risk_score,
+        missing_sections=missing_sections,
+        risky_phrases=risky_phrase_counts,
+    )
+
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    # Return structured response
     return {
-    "stored_filename": stored_filename,
-    "report": {
-        "risk_score": risk_score,
-        "missing_sections": missing_sections,
-        "risky_phrases": risky_phrase_counts
-    },
-    "metadata": {
-        "extracted_characters": len(text),
-        "analysis_type": "rule_based_v1"
+        "document_id": doc.id,
+        "report_id": report.id,
+        "report": {
+            "risk_score": risk_score,
+            "missing_sections": missing_sections,
+            "risky_phrases": risky_phrase_counts,
+        },
+        "metadata": {
+            "extracted_characters": len(text),
+            "analysis_type": "rule_based_v1",
+        },
     }
-} 
-    
+

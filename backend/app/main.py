@@ -60,23 +60,23 @@ def normalize_text(text: str) -> str:
     """
     return text.lower()
 
-
-def find_missing_sections(text: str) -> list[str]:
-    """
-    Check whether required sections appear to exist in the document.
-
-    Returns:
-        A list of section keys that appear to be missing.
-    """
+def find_missing_sections(text: str) -> list[dict]:
     lower_text = normalize_text(text)
-    missing: list[str] = []
+    missing = []
 
-    for section_key, keywords in REQUIRED_SECTIONS.items():
-        # If none of the keywords appear, we consider the section missing
+    for section_key, section_data in REQUIRED_SECTIONS.items():
+        keywords = section_data["keywords"]
+        label = section_data["label"]
+
         if not any(keyword in lower_text for keyword in keywords):
-            missing.append(section_key)
+            missing.append({
+                "key": section_key,
+                "label": label,
+                "severity": "HIGH"
+            })
 
     return missing
+
 
 
 def count_risky_phrases(text: str) -> dict[str, int]:
@@ -97,6 +97,19 @@ def count_risky_phrases(text: str) -> dict[str, int]:
 
     return counts
 
+def calculate_risk_score(missing_sections: list, risky_phrase_counts: dict) -> int:
+    """
+    Very simple scoring logic:
+    - Each missing section = +20
+    - Each risky phrase occurrence = +1
+    """
+    score = 0
+
+    score += len(missing_sections) * 20
+    score += sum(risky_phrase_counts.values())
+
+    return min(score, 100)  # cap at 100
+
 # Ensure the upload directory exists
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -106,13 +119,30 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # These are HR policy sections we expect in most employee handbooks/policies.
 # We will search the document text for these keywords.
+# Human-friendly structure for required sections
 REQUIRED_SECTIONS = {
-    "code_of_conduct": ["code of conduct", "conduct policy"],
-    "anti_harassment": ["anti-harassment", "harassment", "anti discrimination", "equal opportunity"],
-    "leave_policy": ["leave policy", "vacation", "sick leave", "pto", "paid time off"],
-    "working_hours": ["working hours", "attendance", "work schedule", "timekeeping"],
-    "disciplinary_action": ["disciplinary", "termination", "discipline", "corrective action"],
+    "code_of_conduct": {
+        "label": "Code of Conduct",
+        "keywords": ["code of conduct", "conduct policy"]
+    },
+    "anti_harassment": {
+        "label": "Anti-Harassment Policy",
+        "keywords": ["anti-harassment", "harassment", "anti discrimination", "equal opportunity"]
+    },
+    "leave_policy": {
+        "label": "Leave Policy",
+        "keywords": ["leave policy", "vacation", "sick leave", "pto", "paid time off"]
+    },
+    "working_hours": {
+        "label": "Working Hours & Attendance",
+        "keywords": ["working hours", "attendance", "work schedule", "timekeeping"]
+    },
+    "disciplinary_action": {
+        "label": "Disciplinary Action Policy",
+        "keywords": ["disciplinary", "termination", "discipline", "corrective action"]
+    },
 }
+
 
 # Words/phrases that often indicate vague or risky language in policies.
 RISKY_PHRASES = [
@@ -270,14 +300,18 @@ def analyze_document(stored_filename: str):
     missing_sections = find_missing_sections(text)
     risky_phrase_counts = count_risky_phrases(text)
 
-    # Create a simple report response
+    risk_score = calculate_risk_score(missing_sections, risky_phrase_counts)
+
     return {
-        "stored_filename": stored_filename,
-        "summary": {
-            "missing_sections_count": len(missing_sections),
-            "risky_phrases_found": len(risky_phrase_counts),
-            "extracted_characters": len(text),
-        },
+    "stored_filename": stored_filename,
+    "report": {
+        "risk_score": risk_score,
         "missing_sections": missing_sections,
-        "risky_phrases": risky_phrase_counts,
+        "risky_phrases": risky_phrase_counts
+    },
+    "metadata": {
+        "extracted_characters": len(text),
+        "analysis_type": "rule_based_v1"
     }
+} 
+    

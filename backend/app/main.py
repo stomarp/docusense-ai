@@ -21,6 +21,7 @@ from backend.app.db import models  # noqa: F401
 
 # SQLAlchemy session for DB operations
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 # FastAPI dependency injection helper
 from fastapi import Depends
@@ -351,5 +352,75 @@ def analyze_document(
             "extracted_characters": len(text),
             "analysis_type": "rule_based_v1",
         },
+    }
+
+@app.get("/documents")
+def list_documents(db: Session = Depends(get_db)):
+    """
+    List uploaded documents.
+    For each document, also include the latest analysis report (if available).
+    """
+
+    docs = db.query(Document).order_by(Document.id.desc()).all()
+
+    results = []
+
+    for doc in docs:
+        # Get the most recent report for this document (if any)
+        latest_report = (
+            db.query(AnalysisReport)
+            .filter(AnalysisReport.document_id == doc.id)
+            .order_by(AnalysisReport.id.desc())
+            .first()
+        )
+
+        results.append({
+            "document_id": doc.id,
+            "original_filename": doc.original_filename,
+            "stored_filename": doc.stored_filename,
+            "file_type": doc.file_type,
+            "created_at": str(doc.created_at),
+            "latest_report": None if not latest_report else {
+                "report_id": latest_report.id,
+                "risk_score": latest_report.risk_score,
+                "created_at": str(latest_report.created_at),
+            }
+        })
+
+    return results
+
+
+@app.get("/documents/{document_id}/reports")
+def list_reports(document_id: int, db: Session = Depends(get_db)):
+    """
+    List all analysis reports for a specific document (history).
+    """
+
+    # Make sure the document exists
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    reports = (
+        db.query(AnalysisReport)
+        .filter(AnalysisReport.document_id == document_id)
+        .order_by(AnalysisReport.id.desc())
+        .all()
+    )
+
+    return {
+        "document_id": doc.id,
+        "original_filename": doc.original_filename,
+        "stored_filename": doc.stored_filename,
+        "reports": [
+            {
+                "report_id": r.id,
+                "risk_score": r.risk_score,
+                "missing_sections": r.missing_sections,
+                "risky_phrases": r.risky_phrases,
+                "created_at": str(r.created_at),
+            }
+            for r in reports
+        ],
     }
 

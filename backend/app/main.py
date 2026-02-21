@@ -13,6 +13,8 @@ from fastapi import HTTPException
 
 # Library to read .docx files
 from docx import Document
+# PDF reader library (for text-based PDFs)
+from pypdf import PdfReader
 
 
 # Create an instance of the FastAPI application
@@ -32,6 +34,25 @@ def extract_text_from_docx(file_path: Path) -> str:
     doc = Document(str(file_path))
     paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
     return "\n".join(paragraphs)
+
+def extract_text_from_pdf(file_path: Path) -> str:
+    """
+    Extract text from a PDF file and return it as a single string.
+
+    NOTE:
+    - This works well for PDFs that contain selectable text.
+    - For scanned/image-only PDFs, this may return empty text.
+    """
+    reader = PdfReader(str(file_path))
+    pages_text = []
+
+    # Loop through each page and extract text
+    for page in reader.pages:
+        page_text = page.extract_text() or ""
+        if page_text.strip():
+            pages_text.append(page_text)
+
+    return "\n".join(pages_text)
 
 # Ensure the upload directory exists
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -124,14 +145,16 @@ def extract_text(stored_filename: str):
     ext = file_path.suffix.lower()
 
     if ext == ".docx":
-        text = extract_text_from_docx(file_path)
+      text = extract_text_from_docx(file_path)
+    elif ext == ".pdf":
+      text = extract_text_from_pdf(file_path)
     elif ext == ".txt":
-        text = file_path.read_text(encoding="utf-8", errors="ignore")
+      text = file_path.read_text(encoding="utf-8", errors="ignore")
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type for text extraction (supported: .docx, .txt)"
-        )
+      raise HTTPException(
+        status_code=400,
+        detail="Unsupported file type for text extraction (supported: .docx, .pdf, .txt)"
+    )
 
     # Return extracted text (we'll store it in DB in next steps)
     return {

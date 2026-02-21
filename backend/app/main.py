@@ -4,6 +4,10 @@
 from fastapi import FastAPI
 # Import UploadFile and File to handle file uploads
 from fastapi import UploadFile, File
+# Standard library imports for file handling
+from pathlib import Path
+import uuid
+
 
 # Create an instance of the FastAPI application
 # This 'app' object represents our backend server
@@ -12,6 +16,12 @@ app = FastAPI(
     description="HR Policy Compliance Analyzer Backend",
     version="0.1.0"
 )
+
+# Folder where uploaded files will be stored
+UPLOAD_DIR = Path("backend/uploads")
+
+# Ensure the upload directory exists
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # This is a simple GET API endpoint
 # Endpoint URL: /health
@@ -36,23 +46,45 @@ def health_check():
 
 # This endpoint allows users to upload a document file
 @app.post("/upload")
-def upload_document(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...)):
     """
     Upload document endpoint.
 
-    This endpoint:
-    - Accepts a file from the user
-    - Does NOT analyze it yet
-    - Simply confirms the file was received
+    What this does:
+    1) Receives a file from the client (PDF/text/etc.)
+    2) Saves it to backend/uploads/
+    3) Returns the saved file name and path
 
-    This is the first step toward document analysis.
+    Why we save the file:
+    - Next steps (text extraction + ML) need access to the document contents.
     """
 
-    # Get the uploaded file name
-    filename = file.filename
+    # Create a unique ID so files don't overwrite each other
+    # Example: "3f2a9c1d9c0b4a1aa2f8f0d2c0e5c8e3"
+    unique_id = uuid.uuid4().hex
 
-    # Return a simple confirmation response
+    # Get the original file extension (e.g., ".pdf", ".txt")
+    # If extension is missing, we keep it empty safely
+    original_name = file.filename or "uploaded_file"
+    ext = Path(original_name).suffix
+
+    # Build a safe stored filename like: "3f2a...e3.pdf"
+    stored_filename = f"{unique_id}{ext}"
+
+    # Create the full path where we will save the file
+    stored_path = UPLOAD_DIR / stored_filename
+
+    # Read the uploaded file content into memory
+    contents = await file.read()
+
+    # Write bytes to disk
+    stored_path.write_bytes(contents)
+
+    # Return a clean response
     return {
-        "message": "File uploaded successfully",
-        "filename": filename
-    }
+        "message": "File uploaded and saved",
+        "original_filename": original_name,
+        "stored_filename": stored_filename,
+        "stored_path": str(stored_path)
+         
+}

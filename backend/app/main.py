@@ -54,8 +54,78 @@ def extract_text_from_pdf(file_path: Path) -> str:
 
     return "\n".join(pages_text)
 
+def normalize_text(text: str) -> str:
+    """
+    Make text easier to search by converting it to lowercase.
+    """
+    return text.lower()
+
+
+def find_missing_sections(text: str) -> list[str]:
+    """
+    Check whether required sections appear to exist in the document.
+
+    Returns:
+        A list of section keys that appear to be missing.
+    """
+    lower_text = normalize_text(text)
+    missing: list[str] = []
+
+    for section_key, keywords in REQUIRED_SECTIONS.items():
+        # If none of the keywords appear, we consider the section missing
+        if not any(keyword in lower_text for keyword in keywords):
+            missing.append(section_key)
+
+    return missing
+
+
+def count_risky_phrases(text: str) -> dict[str, int]:
+    """
+    Count how many times risky phrases appear in the document.
+
+    Returns:
+        A dict like {"may": 10, "as needed": 2}
+        Only phrases that appear at least once are included.
+    """
+    lower_text = normalize_text(text)
+    counts: dict[str, int] = {}
+
+    for phrase in RISKY_PHRASES:
+        c = lower_text.count(phrase)
+        if c > 0:
+            counts[phrase] = c
+
+    return counts
+
 # Ensure the upload directory exists
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# -------------------------------------------------------------------
+# Basic rule-based checks (V1)
+# -------------------------------------------------------------------
+
+# These are HR policy sections we expect in most employee handbooks/policies.
+# We will search the document text for these keywords.
+REQUIRED_SECTIONS = {
+    "code_of_conduct": ["code of conduct", "conduct policy"],
+    "anti_harassment": ["anti-harassment", "harassment", "anti discrimination", "equal opportunity"],
+    "leave_policy": ["leave policy", "vacation", "sick leave", "pto", "paid time off"],
+    "working_hours": ["working hours", "attendance", "work schedule", "timekeeping"],
+    "disciplinary_action": ["disciplinary", "termination", "discipline", "corrective action"],
+}
+
+# Words/phrases that often indicate vague or risky language in policies.
+RISKY_PHRASES = [
+    "may",
+    "might",
+    "as needed",
+    "at management discretion",
+    "depending",
+    "from time to time",
+    "usually",
+    "reasonable",
+    "best effort",
+]
 
 # This is a simple GET API endpoint
 # Endpoint URL: /health
@@ -162,4 +232,52 @@ def extract_text(stored_filename: str):
         "characters": len(text),
         "preview": text[:500],   # show only first 500 chars
         "text": text             # full text (ok for now; later we may not return full)
+    }
+
+@app.post("/analyze/{stored_filename}")
+def analyze_document(stored_filename: str):
+    """
+    Analyze an uploaded document and return a simple compliance report.
+
+    V1 (rule-based):
+    - Checks if key HR sections are missing
+    - Counts vague/risky phrases
+    """
+
+    # Build the path to the uploaded file
+    file_path = UPLOAD_DIR / stored_filename
+
+    # If file does not exist, return a 404 error
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Extract text based on file extension
+    ext = file_path.suffix.lower()
+
+    if ext == ".docx":
+        text = extract_text_from_docx(file_path)
+    elif ext == ".pdf":
+        text = extract_text_from_pdf(file_path)
+    elif ext == ".txt":
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type for analysis (supported: .docx, .pdf, .txt)"
+        )
+
+    # Run rule-based checks
+    missing_sections = find_missing_sections(text)
+    risky_phrase_counts = count_risky_phrases(text)
+
+    # Create a simple report response
+    return {
+        "stored_filename": stored_filename,
+        "summary": {
+            "missing_sections_count": len(missing_sections),
+            "risky_phrases_found": len(risky_phrase_counts),
+            "extracted_characters": len(text),
+        },
+        "missing_sections": missing_sections,
+        "risky_phrases": risky_phrase_counts,
     }

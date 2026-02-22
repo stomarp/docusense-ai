@@ -1,8 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 
 # Connection string for local Postgres from docker-compose
-DATABASE_URL = "postgresql://docuguard:docuguard@localhost:5433/docuguard"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://docuguard:docuguard@localhost:5433/docuguard"
+)
 
 # Engine manages DB connections
 engine = create_engine(DATABASE_URL)

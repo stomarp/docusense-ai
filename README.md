@@ -19,4 +19,4 @@ potential issues for human review.
 - Generates a structured and explainable compliance report
 
 > DocuGuard is a decision-support system.  
-> It does not
+

@@ -1,0 +1,11 @@
+text,label
+"Employees must follow ethical standards and behave professionally at all times.",code_of_conduct
+"Violations of conduct rules may result in disciplinary action.",code_of_conduct
+"Harassment of any kind is not tolerated and will be investigated.",anti_harassment
+"We provide equal opportunity and do not discriminate based on protected characteristics.",anti_harassment
+"Paid time off (PTO) includes vacation and sick leave.",leave_policy
+"Employees should request leave in advance whenever possible.",leave_policy
+"Working hours are 9am to 5pm and attendance is required.",working_hours
+"Employees must record time accurately using the timekeeping system.",working_hours
+"Disciplinary action may include warnings, suspension, or termination.",disciplinary_action
+"Repeated violations can lead to corrective action and termination.",disciplinary_action

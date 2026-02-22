@@ -207,3 +207,8 @@ marimo/_lsp/
 __marimo__/
 
 backend/uploads/*
+ml/models/*.joblib
+.venv/
+.venv-ml/
+__pycache__/
+*.pyc

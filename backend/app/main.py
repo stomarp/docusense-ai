@@ -1,67 +1,80 @@
-# Entry point for DocuGuard backend
-# Import FastAPI class from the fastapi library
-# FastAPI is the framework we use to build our backend APIs
-from fastapi import FastAPI
-# Import UploadFile and File to handle file uploads
-from fastapi import UploadFile, File
-# Standard library imports for file handling
+"""
+DocuGuard - Main FastAPI Application
+
+This file:
+- Handles file uploads
+- Extracts document text
+- Performs rule-based compliance analysis
+- Runs ML section classification
+- Saves documents and reports to PostgreSQL
+"""
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from pathlib import Path
 import uuid
 
-# To return proper HTTP error messages
-from fastapi import HTTPException
+# DOCX reader (aliased to avoid name collision with DB model)
+from docx import Document as DocxDocument
 
-# Library to read .docx files
-from docx import Document
-# PDF reader library (for text-based PDFs)
+# PDF reader
 from pypdf import PdfReader
 
-from backend.app.db.database import Base, engine
-from backend.app.db import models  # noqa: F401
-
-# SQLAlchemy session for DB operations
+# SQLAlchemy
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
 
-# FastAPI dependency injection helper
-from fastapi import Depends
+# Database setup
+from backend.app.db.database import Base, engine, get_db
+from backend.app.db.models import Document as DBDocument, AnalysisReport
 
-# Our DB session provider + models
-from backend.app.db.database import get_db
-from backend.app.db.models import Document, AnalysisReport
+# ML classifier
+from backend.app.ml.section_classifier import SectionClassifier
 
 
-# Create an instance of the FastAPI application
-# This 'app' object represents our backend server
+# -------------------------------------------------------
+# App Initialization
+# -------------------------------------------------------
+
 app = FastAPI(
-    title="DocuGuard",                  # Name of the application
+    title="DocuGuard",
     description="HR Policy Compliance Analyzer Backend",
     version="0.1.0"
 )
+
+# Create DB tables if not present
 Base.metadata.create_all(bind=engine)
 
-# Folder where uploaded files will be stored
+# Load ML model once at startup
+section_classifier = SectionClassifier()
+try:
+    section_classifier.load()
+except Exception as e:
+    print(f"[ML] Section classifier not loaded: {e}")
+
+
+# -------------------------------------------------------
+# File Storage Setup
+# -------------------------------------------------------
+
 UPLOAD_DIR = Path("backend/uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# -------------------------------------------------------
+# Text Extraction Helpers
+# -------------------------------------------------------
+
 def extract_text_from_docx(file_path: Path) -> str:
-    """
-    Extract all text from a .docx file and return it as a single string.
-    """
-    doc = Document(str(file_path))
+    """Extract text from DOCX file."""
+    doc = DocxDocument(str(file_path))
     paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
     return "\n".join(paragraphs)
 
-def extract_text_from_pdf(file_path: Path) -> str:
-    """
-    Extract text from a PDF file and return it as a single string.
 
-    NOTE:
-    - This works well for PDFs that contain selectable text.
-    - For scanned/image-only PDFs, this may return empty text.
-    """
+def extract_text_from_pdf(file_path: Path) -> str:
+    """Extract text from text-based PDF."""
     reader = PdfReader(str(file_path))
     pages_text = []
 
-    # Loop through each page and extract text
     for page in reader.pages:
         page_text = page.extract_text() or ""
         if page_text.strip():
@@ -69,72 +82,16 @@ def extract_text_from_pdf(file_path: Path) -> str:
 
     return "\n".join(pages_text)
 
-def normalize_text(text: str) -> str:
-    """
-    Make text easier to search by converting it to lowercase.
-    """
-    return text.lower()
 
-def find_missing_sections(text: str) -> list[dict]:
-    lower_text = normalize_text(text)
-    missing = []
-
-    for section_key, section_data in REQUIRED_SECTIONS.items():
-        keywords = section_data["keywords"]
-        label = section_data["label"]
-
-        if not any(keyword in lower_text for keyword in keywords):
-            missing.append({
-                "key": section_key,
-                "label": label,
-                "severity": "HIGH"
-            })
-
-    return missing
+def split_into_chunks(text: str) -> list[str]:
+    """Split document into paragraph chunks for ML."""
+    return [line.strip() for line in text.split("\n") if line.strip()]
 
 
+# -------------------------------------------------------
+# Rule-Based Logic
+# -------------------------------------------------------
 
-def count_risky_phrases(text: str) -> dict[str, int]:
-    """
-    Count how many times risky phrases appear in the document.
-
-    Returns:
-        A dict like {"may": 10, "as needed": 2}
-        Only phrases that appear at least once are included.
-    """
-    lower_text = normalize_text(text)
-    counts: dict[str, int] = {}
-
-    for phrase in RISKY_PHRASES:
-        c = lower_text.count(phrase)
-        if c > 0:
-            counts[phrase] = c
-
-    return counts
-
-def calculate_risk_score(missing_sections: list, risky_phrase_counts: dict) -> int:
-    """
-    Very simple scoring logic:
-    - Each missing section = +20
-    - Each risky phrase occurrence = +1
-    """
-    score = 0
-
-    score += len(missing_sections) * 20
-    score += sum(risky_phrase_counts.values())
-
-    return min(score, 100)  # cap at 100
-
-# Ensure the upload directory exists
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-# -------------------------------------------------------------------
-# Basic rule-based checks (V1)
-# -------------------------------------------------------------------
-
-# These are HR policy sections we expect in most employee handbooks/policies.
-# We will search the document text for these keywords.
-# Human-friendly structure for required sections
 REQUIRED_SECTIONS = {
     "code_of_conduct": {
         "label": "Code of Conduct",
@@ -142,73 +99,113 @@ REQUIRED_SECTIONS = {
     },
     "anti_harassment": {
         "label": "Anti-Harassment Policy",
-        "keywords": ["anti-harassment", "harassment", "anti discrimination", "equal opportunity"]
+        "keywords": ["anti-harassment", "harassment", "equal opportunity"]
     },
     "leave_policy": {
         "label": "Leave Policy",
-        "keywords": ["leave policy", "vacation", "sick leave", "pto", "paid time off"]
+        "keywords": ["leave policy", "vacation", "sick leave", "pto"]
     },
     "working_hours": {
         "label": "Working Hours & Attendance",
-        "keywords": ["working hours", "attendance", "work schedule", "timekeeping"]
+        "keywords": ["working hours", "attendance", "timekeeping"]
     },
     "disciplinary_action": {
         "label": "Disciplinary Action Policy",
-        "keywords": ["disciplinary", "termination", "discipline", "corrective action"]
+        "keywords": ["disciplinary", "termination", "corrective action"]
     },
 }
 
-
-# Words/phrases that often indicate vague or risky language in policies.
 RISKY_PHRASES = [
     "may",
     "might",
     "as needed",
     "at management discretion",
-    "depending",
-    "from time to time",
-    "usually",
     "reasonable",
-    "best effort",
 ]
 
-# This is a simple GET API endpoint
-# Endpoint URL: /health
-# Purpose: Check if the backend server is running correctly
-@app.get("/health")
-def health_check():
-    """
-    Health check endpoint.
 
-    This endpoint is used to verify that:
-    - The FastAPI server is running
-    - The application is reachable
+def normalize_text(text: str) -> str:
+    return text.lower()
 
-    It returns a simple JSON response.
-    """
 
-    # Return a JSON response
-    # This will be shown in the browser or API client
+def find_missing_sections(text: str):
+    lower_text = normalize_text(text)
+    missing = []
+
+    for key, data in REQUIRED_SECTIONS.items():
+        if not any(keyword in lower_text for keyword in data["keywords"]):
+            missing.append({
+                "key": key,
+                "label": data["label"],
+                "severity": "HIGH"
+            })
+
+    return missing
+
+
+def count_risky_phrases(text: str):
+    lower_text = normalize_text(text)
     return {
-        "status": "DocuGuard is running"
+        phrase: lower_text.count(phrase)
+        for phrase in RISKY_PHRASES
+        if lower_text.count(phrase) > 0
     }
 
-# This endpoint allows users to upload a document file
+
+def calculate_risk_score(missing_sections, risky_phrases):
+    score = len(missing_sections) * 20
+    score += sum(risky_phrases.values())
+    return min(score, 100)
+
+def build_ml_summary(ml_sections: list[dict]) -> list[dict]:
+    """
+    Group ML predictions by label and compute a small summary:
+    - count
+    - average confidence
+    - top example snippet
+    """
+    grouped: dict[str, list[dict]] = {}
+
+    for item in ml_sections:
+        label = item["label"]
+        grouped.setdefault(label, []).append(item)
+
+    summary = []
+    for label, items in grouped.items():
+        avg_conf = sum(x["confidence"] for x in items) / len(items)
+        top_item = max(items, key=lambda x: x["confidence"])
+
+        summary.append({
+            "label": label,
+            "count": len(items),
+            "avg_confidence": round(avg_conf, 4),
+            "top_example": top_item["text_preview"],
+            "top_confidence": top_item["confidence"],
+        })
+
+    # Sort by avg confidence desc
+    summary.sort(key=lambda x: x["avg_confidence"], reverse=True)
+    return summary
+
+
+# -------------------------------------------------------
+# Health Endpoint
+# -------------------------------------------------------
+
+@app.get("/health")
+def health_check():
+    return {"status": "DocuGuard is running"}
+
+
+# -------------------------------------------------------
+# Upload Endpoint
+# -------------------------------------------------------
 
 @app.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Upload document endpoint.
-
-    1) Save file to disk
-    2) Insert document metadata into DB
-    3) Return document_id + file info
-    """
-
-    # Generate unique file name
     unique_id = uuid.uuid4().hex
     original_name = file.filename or "uploaded_file"
     ext = Path(original_name).suffix
@@ -216,14 +213,11 @@ async def upload_document(
     stored_filename = f"{unique_id}{ext}"
     stored_path = UPLOAD_DIR / stored_filename
 
-    # Save file to disk
     contents = await file.read()
     stored_path.write_bytes(contents)
 
-    # ---------------------------
-    # SAVE DOCUMENT TO DATABASE
-    # ---------------------------
-    doc = Document(
+    # Save to DB
+    doc = DBDocument(
         original_filename=original_name,
         stored_filename=stored_filename,
         file_type=ext.lstrip(".") if ext else "unknown",
@@ -231,17 +225,13 @@ async def upload_document(
 
     db.add(doc)
     db.commit()
-    db.refresh(doc)  # This populates doc.id
+    db.refresh(doc)
 
-    # Return response including DB ID
     return {
         "message": "File uploaded and saved",
         "document_id": doc.id,
-        "original_filename": original_name,
-        "stored_filename": stored_filename,
-        "stored_path": str(stored_path),
+        "stored_filename": stored_filename
     }
-
 
 
 @app.post("/extract-text/{stored_filename}")
@@ -285,15 +275,16 @@ def extract_text(stored_filename: str):
         "text": text             # full text (ok for now; later we may not return full)
     }
 
+
+# -------------------------------------------------------
+# Analyze Endpoint
+# -------------------------------------------------------
+
 @app.post("/analyze/{stored_filename}")
 def analyze_document(
     stored_filename: str,
     db: Session = Depends(get_db)
 ):
-    """
-    Analyze uploaded document and save report to DB.
-    """
-
     file_path = UPLOAD_DIR / stored_filename
 
     if not file_path.exists():
@@ -310,63 +301,88 @@ def analyze_document(
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    # Run analysis
+    # Rule-based analysis
     missing_sections = find_missing_sections(text)
-    risky_phrase_counts = count_risky_phrases(text)
-    risk_score = calculate_risk_score(missing_sections, risky_phrase_counts)
+    risky_phrases = count_risky_phrases(text)
+    risk_score = calculate_risk_score(missing_sections, risky_phrases)
 
-    # -----------------------------------
-    # FIND DOCUMENT IN DATABASE
-    # -----------------------------------
-    doc = db.query(Document).filter(
-        Document.stored_filename == stored_filename
+    # ML Section Classification
+
+    # ML Section Classification (optional)
+    ml_sections = []
+    ml_summary = []
+
+    if section_classifier.is_ready():
+      chunks = split_into_chunks(text)
+
+    # Predict for all chunks
+      raw_predictions = section_classifier.predict_many(chunks)
+
+    # Keep only confident predictions
+      CONF_THRESHOLD = 0.35  # you can tune this
+      ml_sections = [p for p in raw_predictions if p["confidence"] >= CONF_THRESHOLD]
+
+    # Limit raw output (avoid huge response)
+      ml_sections = sorted(ml_sections, key=lambda x: x["confidence"], reverse=True)[:10]
+
+    # Build grouped summary
+      ml_summary = build_ml_summary(ml_sections)
+   
+
+
+    # Find document in DB
+    doc = db.query(DBDocument).filter(
+        DBDocument.stored_filename == stored_filename
     ).first()
 
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found in DB")
 
-    # -----------------------------------
-    # SAVE REPORT TO DATABASE
-    # -----------------------------------
+    # Save report
     report = AnalysisReport(
         document_id=doc.id,
         risk_score=risk_score,
         missing_sections=missing_sections,
-        risky_phrases=risky_phrase_counts,
+        risky_phrases=risky_phrases,
     )
 
     db.add(report)
     db.commit()
     db.refresh(report)
 
-    # Return structured response
     return {
-        "document_id": doc.id,
-        "report_id": report.id,
-        "report": {
-            "risk_score": risk_score,
-            "missing_sections": missing_sections,
-            "risky_phrases": risky_phrase_counts,
-        },
-        "metadata": {
-            "extracted_characters": len(text),
-            "analysis_type": "rule_based_v1",
-        },
+    "document_id": doc.id,
+    "report_id": report.id,
+    "report": {
+        "risk_score": risk_score,
+        "missing_sections": missing_sections,
+        "risky_phrases": risky_phrases,
+    },
+    "ml_summary": ml_summary,          # 👈 ADD THIS
+    "ml_sections": ml_sections,        # 👈 KEEP THIS
+    "metadata": {
+        "extracted_characters": len(text),
+        "analysis_type": "rule_based_v1 + ml_classifier",
+        "ml_conf_threshold": CONF_THRESHOLD,          # 👈 ADD THIS
+        "ml_sections_returned": len(ml_sections),     # 👈 ADD THIS
     }
+}
+
+    
+# -------------------------------------------------------
+# Documents + Reports History Endpoints
+# -------------------------------------------------------
 
 @app.get("/documents")
 def list_documents(db: Session = Depends(get_db)):
     """
-    List uploaded documents.
-    For each document, also include the latest analysis report (if available).
+    List all uploaded documents.
+    For each document, include the most recent report (if it exists).
     """
-
-    docs = db.query(Document).order_by(Document.id.desc()).all()
-
+    docs = db.query(DBDocument).order_by(DBDocument.id.desc()).all()
     results = []
 
     for doc in docs:
-        # Get the most recent report for this document (if any)
         latest_report = (
             db.query(AnalysisReport)
             .filter(AnalysisReport.document_id == doc.id)
@@ -393,11 +409,9 @@ def list_documents(db: Session = Depends(get_db)):
 @app.get("/documents/{document_id}/reports")
 def list_reports(document_id: int, db: Session = Depends(get_db)):
     """
-    List all analysis reports for a specific document (history).
+    List all analysis reports for a specific document (report history).
     """
-
-    # Make sure the document exists
-    doc = db.query(Document).filter(Document.id == document_id).first()
+    doc = db.query(DBDocument).filter(DBDocument.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -423,4 +437,3 @@ def list_reports(document_id: int, db: Session = Depends(get_db)):
             for r in reports
         ],
     }
-

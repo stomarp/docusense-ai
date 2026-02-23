@@ -1,133 +1,84 @@
-#  DocuGuard HR
+# DocuGuard Backend
 
-> Intelligent HR Policy Compliance Analyzer  
-> Hybrid Rule-Based + Machine Learning Document Intelligence System
+DocuGuard backend is a FastAPI microservice responsible for:
 
----
+- Document ingestion (PDF / DOCX / TXT)
+- Compliance risk analysis (rule-based)
+- Section classification (ML)
+- Report persistence (PostgreSQL)
 
-##  Overview
-
-DocuGuard HR is a backend system that analyzes HR policy documents for compliance risks using:
-
--  FastAPI (REST API backend)
--  PostgreSQL (persistent storage)
--  Rule-based compliance engine
--  Machine Learning section classifier (TF-IDF + Logistic Regression)
--  Dockerized database setup
-
-It allows uploading HR documents (PDF, DOCX, TXT), extracting text, analyzing compliance risk, classifying sections using ML, and storing full analysis history.
+This service is stateless and designed for containerized deployment.
 
 ---
 
-##  Architecture
-```text
-DocuGuard HR
-│
-├── backend/
-│ ├── app/
-│ │ ├── db/
-│ │ │ ├── database.py
-│ │ │ └── models.py
-│ │ ├── ml/
-│ │ │ └── section_classifier.py
-│ │ └── main.py
-│ └── requirements.txt
-│
-├── ml/
-│ ├── data/
-│ │ └── sections_train.csv
-│ ├── src/
-│ │ ├── train.py
-│ │ └── predict.py
-│ └── models/
-│
-└── docker-compose.yml
+## Responsibilities
+
+- File upload and storage
+- Text extraction
+- Rule-based compliance scoring
+- ML-based section classification
+- Structured report generation
+- Persistent storage of documents and analysis reports
+
+---
+
+## Architecture
+
+```
+Client
+  │
+  ▼
+FastAPI Service
+  ├── Upload + Storage
+  ├── Text Extraction
+  ├── Rule-Based Engine
+  ├── ML Classifier
+  └── PostgreSQL (SQLAlchemy ORM)
 ```
 
 ---
 
-##  Features
+## Tech Stack
 
-###  Document Management
-
-- Upload PDF, DOCX, TXT
-- Store files locally
-- Persist metadata in PostgreSQL
-- Maintain full report history
-
----
-
-### ⚖️ Rule-Based Compliance Engine
-
-Checks for required HR sections:
-
-- Code of Conduct  
-- Anti-Harassment Policy  
-- Leave Policy  
-- Working Hours & Attendance  
-- Disciplinary Action Policy  
-
-Detects:
-- Missing mandatory sections  
-- Risky / vague language  
-- Calculates risk score (0–100)
-
-#### Risk Score Formula
-
-```text
-Risk Score = (20 × Missing Sections) + Risky Phrase Occurrences
-(Max capped at 100)
-```
----
-
-
-##  Machine Learning Section Classification
-
-### Model
-
-- TF-IDF Vectorizer (1–2 grams)
-- Logistic Regression classifier
-
-### Capabilities
-
-- Paragraph-level classification  
-- Confidence scoring  
-- Confidence threshold filtering  
-- ML summary grouping  
-- Hybrid rule-based + ML analysis  
+- Python 3.11+
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- scikit-learn
+- Docker
 
 ---
 
-##  Database Schema
+## Database
 
-### Documents Table
+### Tables
 
-- id  
-- original_filename  
-- stored_filename  
-- file_type  
-- created_at  
+**documents**
+- id (PK)
+- original_filename
+- stored_filename (unique)
+- file_type
+- created_at
 
-### Analysis Reports Table
-
-- id  
-- document_id (Foreign Key)  
-- risk_score  
-- missing_sections (JSON)  
-- risky_phrases (JSON)  
-- created_at  
+**analysis_reports**
+- id (PK)
+- document_id (FK)
+- risk_score
+- missing_sections (JSON)
+- risky_phrases (JSON)
+- created_at
 
 ---
 
-##  Setup Instructions
+## Local Development
 
-### 1️ Start PostgreSQL (Docker)
+### Start Database
 
 ```bash
 docker compose up -d
 ```
 
-Database connection:
+Connection string:
 
 ```
 postgresql://docuguard:docuguard@localhost:5433/docuguard
@@ -135,7 +86,7 @@ postgresql://docuguard:docuguard@localhost:5433/docuguard
 
 ---
 
-###  Create Virtual Environment
+### Install Dependencies
 
 ```bash
 python3 -m venv .venv
@@ -145,27 +96,21 @@ pip install -r backend/requirements.txt
 
 ---
 
-###  Train ML Model
+### Train ML Model
 
 ```bash
 python ml/src/train.py
 ```
 
-Model will be saved to:
-
-```
-ml/models/section_model.joblib
-```
-
 ---
 
-###  Run FastAPI Server
+### Run Service
 
 ```bash
 uvicorn backend.app.main:app --reload
 ```
 
-Open Swagger UI:
+API docs:
 
 ```
 http://127.0.0.1:8000/docs
@@ -173,144 +118,23 @@ http://127.0.0.1:8000/docs
 
 ---
 
-##  API Endpoints
+## API Endpoints
 
-###  Health Check
-
-```
-GET /health
-```
-
----
-
-###  Upload Document
-
-```
-POST /upload
-```
-
-Response:
-
-```json
-{
-  "message": "File uploaded and saved",
-  "document_id": 1,
-  "stored_filename": "abc123.pdf"
-}
-```
+- `GET /health`
+- `POST /upload`
+- `POST /extract-text/{stored_filename}`
+- `POST /analyze/{stored_filename}`
+- `GET /documents`
+- `GET /documents/{document_id}/reports`
 
 ---
 
-###  Extract Text
+## Notes
 
-```
-POST /extract-text/{stored_filename}
-```
-
----
-
-###  Analyze Document
-
-```
-POST /analyze/{stored_filename}
-```
-
-Returns:
-
-- Risk Score  
-- Missing Sections  
-- Risky Phrase Counts  
-- ML Section Predictions  
-- ML Summary  
-- Metadata  
+- Uploaded files are stored locally (ignored in Git).
+- ML model is loaded at application startup.
+- Reports are immutable once generated.
+- Service designed to be extended with OCR and async processing.
 
 ---
 
-###  List All Documents
-
-```
-GET /documents
-```
-
----
-
-###  Get Report History
-
-```
-GET /documents/{document_id}/reports
-```
-
----
-
-## Example Analysis Response
-
-```json
-{
-  "document_id": 8,
-  "report_id": 5,
-  "report": {
-    "risk_score": 80,
-    "missing_sections": [...],
-    "risky_phrases": {...}
-  },
-  "ml_summary": {...},
-  "metadata": {
-    "analysis_type": "rule_based_v1 + ml_classifier",
-    "ml_conf_threshold": 0.35
-  }
-}
-```
-
----
-
-##  Tech Stack
-
-| Layer     | Technology |
-|-----------|------------|
-| Backend   | FastAPI |
-| Database  | PostgreSQL |
-| ORM       | SQLAlchemy |
-| ML        | scikit-learn |
-| Vectorizer| TF-IDF |
-| Model     | Logistic Regression |
-| DevOps    | Docker |
-| API Docs  | OpenAPI 3.1 (Swagger) |
-
----
-
-##  Why This Project Is Strong
-
-This project demonstrates:
-
-- REST API design  
-- Database schema modeling  
-- File handling  
-- Text extraction  
-- Rule-based NLP  
-- ML training + inference pipeline  
-- Confidence-based filtering  
-- Dockerized infrastructure  
-- Hybrid AI system design  
-
-This is not CRUD — it's an intelligent document analysis system.
-
----
-
-## Roadmap
-
-- OCR support for scanned PDFs  
-- Larger HR dataset for ML  
-- Transformer-based model (BERT)  
-- Frontend dashboard (React)  
-- Authentication & RBAC  
-- Deployment to AWS / Azure  
-- CI/CD pipeline  
-- Background job processing  
-
----
-
-##  Author
-
-Swati   
-MS Applied Computer Science  
-Software Development & AI/ML

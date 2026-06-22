@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { analyzeDocument, uploadDocument, type AnalysisResponse } from "../lib/api";
+import { sampleReport } from "../lib/sampleReport";
 import { PipelineStep } from "../components/PipelineStep";
 import { ProductPillar } from "../components/ProductPillar";
 import { ScoreCard } from "../components/ScoreCard";
@@ -67,6 +68,32 @@ export default function HomePage() {
     window.print();
   }
 
+  function downloadReport() {
+    if (!report) {
+      return;
+    }
+
+    const fileName = `${report.document.label.toLowerCase().replaceAll(" ", "-").replaceAll("/", "-")}-docusense-report.json`;
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = fileName;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
+
+  function loadSampleReport() {
+    setReport(sampleReport);
+    setFile(null);
+    setError("");
+    setStatusMessage("Sample report loaded.");
+  }
+
   return (
     <main className="page-shell">
       <header className="app-header">
@@ -113,6 +140,10 @@ export default function HomePage() {
 
           <button className="primary-button" onClick={handleAnalyze} disabled={loading || !file}>
             {loading ? "Analyzing..." : "Run analysis"}
+          </button>
+
+          <button className="secondary-button" onClick={loadSampleReport} type="button">
+            Try sample report
           </button>
 
           {error ? <p className="error">{error}</p> : null}
@@ -187,6 +218,7 @@ export default function HomePage() {
 
           <div className="report-actions">
             <button onClick={copyExecutiveSummary}>{copied ? "Copied summary" : "Copy executive summary"}</button>
+            <button onClick={downloadReport}>Download report</button>
             <button onClick={printReport}>Print report</button>
           </div>
 

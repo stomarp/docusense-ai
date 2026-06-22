@@ -29,6 +29,7 @@ from backend.app.db.models import Document as DBDocument, AnalysisReport
 # ML classifier
 from backend.app.ml.section_classifier import SectionClassifier
 from backend.app.services.risk_intelligence import build_risk_intelligence_report
+from backend.app.services.ai_review import build_ai_review
 
 
 # -------------------------------------------------------
@@ -774,6 +775,7 @@ def analyze_document(
         ml_summary=ml_summary,
         ml_sections=ml_sections,
     )
+    ai_review = build_ai_review(intelligence_report)
 
     # Find document in DB
     doc = db.query(DBDocument).filter(
@@ -804,6 +806,7 @@ def analyze_document(
         "risk_scores": intelligence_report["risk_scores"],
         "clause_coverage": intelligence_report["clause_coverage"],
         "risk_findings": intelligence_report["risk_findings"],
+        "ai_review": ai_review,
         "ai_review_notes": intelligence_report["ai_review_notes"],
         "document_type": document_type,
         "document_type_label": get_document_type_label(document_type),

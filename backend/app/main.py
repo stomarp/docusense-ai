@@ -293,6 +293,255 @@ def build_suggested_improvements(
     return suggestions[:8]
 
 
+DOCUMENT_TYPE_LABELS = {
+    "hr_policy": "HR Policy",
+    "lease_agreement": "Lease Agreement",
+    "offer_letter": "Offer Letter",
+    "contract": "Contract",
+    "compliance_document": "Compliance Document",
+    "general_document": "General Document",
+}
+
+
+def get_document_type_label(document_type: str) -> str:
+    return DOCUMENT_TYPE_LABELS.get(document_type, "General Document")
+
+
+def get_risk_level(risk_score: int) -> str:
+    if risk_score >= 75:
+        return "Critical"
+    if risk_score >= 50:
+        return "High"
+    if risk_score >= 25:
+        return "Medium"
+    return "Low"
+
+
+def get_review_priority(risk_score: int, red_flags: list[dict]) -> str:
+    high_flags = [flag for flag in red_flags if flag.get("severity") == "HIGH"]
+
+    if risk_score >= 75 or high_flags:
+        return "Immediate legal or HR review recommended"
+    if risk_score >= 50:
+        return "Review before approval"
+    if risk_score >= 25:
+        return "Needs cleanup before final use"
+
+    return "Low priority review"
+
+
+def build_scoring_breakdown(
+    risk_score: int,
+    missing_sections: list[dict],
+    risky_phrases: dict
+) -> dict:
+    missing_section_penalty = len(missing_sections) * 20
+    vague_language_penalty = sum(risky_phrases.values()) if risky_phrases else 0
+    quality_score = max(0, 100 - risk_score)
+
+    drivers = []
+
+    if missing_sections:
+        drivers.append({
+            "factor": "Missing expected sections",
+            "impact": missing_section_penalty,
+            "explanation": "Important sections are missing or not clearly labeled."
+        })
+
+    if risky_phrases:
+        drivers.append({
+            "factor": "Vague or discretionary language",
+            "impact": vague_language_penalty,
+            "explanation": "Ambiguous wording can create uncertainty or enforcement risk."
+        })
+
+    if not drivers:
+        drivers.append({
+            "factor": "No major rule-based gaps detected",
+            "impact": 0,
+            "explanation": "The document includes the expected baseline sections for this analyzer version."
+        })
+
+    return {
+        "risk_score": risk_score,
+        "quality_score": quality_score,
+        "missing_section_penalty": missing_section_penalty,
+        "vague_language_penalty": vague_language_penalty,
+        "drivers": drivers
+    }
+
+
+def build_issue_counts(red_flags: list[dict]) -> dict:
+    counts = {
+        "total": len(red_flags),
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "by_type": {}
+    }
+
+    for flag in red_flags:
+        severity = flag.get("severity", "LOW").lower()
+        flag_type = flag.get("type", "unknown")
+
+        if severity in counts:
+            counts[severity] += 1
+
+        counts["by_type"][flag_type] = counts["by_type"].get(flag_type, 0) + 1
+
+    return counts
+
+
+def build_top_risks(red_flags: list[dict]) -> list[dict]:
+    severity_rank = {
+        "HIGH": 3,
+        "MEDIUM": 2,
+        "LOW": 1
+    }
+
+    sorted_flags = sorted(
+        red_flags,
+        key=lambda flag: severity_rank.get(flag.get("severity", "LOW"), 0),
+        reverse=True
+    )
+
+    return sorted_flags[:5]
+
+
+def build_action_plan(
+    missing_sections: list[dict],
+    risky_phrases: dict,
+    suggested_improvements: list[str]
+) -> list[dict]:
+    actions = []
+
+    for section in missing_sections:
+        label = section.get("label", section.get("key", "missing section"))
+        actions.append({
+            "priority": "High",
+            "action": f"Add or rewrite the {label} section.",
+            "reason": "Missing sections create avoidable compliance and interpretation risk."
+        })
+
+    if risky_phrases:
+        actions.append({
+            "priority": "Medium",
+            "action": "Replace vague wording with specific responsibilities, timelines, and approval rules.",
+            "reason": "Ambiguous language makes the document harder to enforce consistently."
+        })
+
+    for suggestion in suggested_improvements:
+        if not any(existing["action"] == suggestion for existing in actions):
+            actions.append({
+                "priority": "Medium",
+                "action": suggestion,
+                "reason": "Improves clarity, completeness, and reviewer confidence."
+            })
+
+    return actions[:8]
+
+
+def build_product_insights(
+    text: str,
+    document_type: str,
+    missing_sections: list[dict],
+    risky_phrases: dict
+) -> dict:
+    words = [word for word in text.split() if word.strip()]
+    risk_level = "strong" if not missing_sections and len(risky_phrases) <= 3 else "needs_review"
+
+    return {
+        "detected_document_type": document_type,
+        "document_type_label": get_document_type_label(document_type),
+        "word_count": len(words),
+        "character_count": len(text),
+        "readiness_status": risk_level,
+        "has_missing_sections": bool(missing_sections),
+        "has_vague_language": bool(risky_phrases),
+        "reviewer_note": (
+            "This document is ready for a light review."
+            if risk_level == "strong"
+            else "This document should be reviewed before it is finalized or signed."
+        )
+    }
+
+
+def build_reviewer_verdict(
+    risk_score: int,
+    missing_sections: list[dict],
+    red_flags: list[dict]
+) -> str:
+    if risk_score >= 75:
+        return "High-risk document. Do not approve without expert review."
+    if risk_score >= 50:
+        return "Material issues detected. Review and revise before use."
+    if missing_sections:
+        return "Important sections are missing. Add them before final use."
+    if red_flags:
+        return "Mostly usable, but wording should be tightened before final use."
+
+    return "No major issues detected by the current analyzer."
+
+
+def build_dashboard_report(
+    document_type: str,
+    summary: str,
+    risk_score: int,
+    missing_sections: list[dict],
+    key_obligations: list[dict],
+    red_flags: list[dict],
+    suggested_improvements: list[str],
+    risky_phrases: dict,
+    text: str
+) -> dict:
+    risk_level = get_risk_level(risk_score)
+    quality_score = max(0, 100 - risk_score)
+
+    return {
+        "executive_summary": {
+            "document_type": get_document_type_label(document_type),
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "quality_score": quality_score,
+            "summary": summary,
+            "reviewer_verdict": build_reviewer_verdict(
+                risk_score,
+                missing_sections,
+                red_flags
+            )
+        },
+        "risk_overview": {
+            "review_priority": get_review_priority(risk_score, red_flags),
+            "issue_counts": build_issue_counts(red_flags),
+            "scoring_breakdown": build_scoring_breakdown(
+                risk_score,
+                missing_sections,
+                risky_phrases
+            )
+        },
+        "findings": {
+            "missing_sections": missing_sections,
+            "top_risks": build_top_risks(red_flags),
+            "key_obligations": key_obligations,
+            "red_flags": red_flags
+        },
+        "recommendations": {
+            "suggested_improvements": suggested_improvements,
+            "action_plan": build_action_plan(
+                missing_sections,
+                risky_phrases,
+                suggested_improvements
+            )
+        },
+        "product_insights": build_product_insights(
+            text,
+            document_type,
+            missing_sections,
+            risky_phrases
+        )
+    }
+
+
 def build_ml_summary(ml_sections: list[dict]) -> list[dict]:
     """
     Group ML predictions by label and compute a small summary:
@@ -459,6 +708,44 @@ def analyze_document(
         risky_phrases=risky_phrases,
     )
 
+    risk_level = get_risk_level(risk_score)
+    quality_score = max(0, 100 - risk_score)
+    review_priority = get_review_priority(risk_score, red_flags)
+    scoring_breakdown = build_scoring_breakdown(
+        risk_score=risk_score,
+        missing_sections=missing_sections,
+        risky_phrases=risky_phrases,
+    )
+    issue_counts = build_issue_counts(red_flags)
+    top_risks = build_top_risks(red_flags)
+    action_plan = build_action_plan(
+        missing_sections=missing_sections,
+        risky_phrases=risky_phrases,
+        suggested_improvements=suggested_improvements,
+    )
+    product_insights = build_product_insights(
+        text=text,
+        document_type=document_type,
+        missing_sections=missing_sections,
+        risky_phrases=risky_phrases,
+    )
+    reviewer_verdict = build_reviewer_verdict(
+        risk_score=risk_score,
+        missing_sections=missing_sections,
+        red_flags=red_flags,
+    )
+    product_report = build_dashboard_report(
+        document_type=document_type,
+        summary=summary,
+        risk_score=risk_score,
+        missing_sections=missing_sections,
+        key_obligations=key_obligations,
+        red_flags=red_flags,
+        suggested_improvements=suggested_improvements,
+        risky_phrases=risky_phrases,
+        text=text,
+    )
+
     # ML Section Classification
 
     # ML Section Classification (optional)
@@ -504,12 +791,23 @@ def analyze_document(
         "document_id": doc.id,
         "report_id": report.id,
         "document_type": document_type,
+        "document_type_label": get_document_type_label(document_type),
         "summary": summary,
+        "risk_level": risk_level,
         "risk_score": risk_score,
+        "quality_score": quality_score,
+        "review_priority": review_priority,
+        "reviewer_verdict": reviewer_verdict,
+        "scoring_breakdown": scoring_breakdown,
+        "issue_counts": issue_counts,
+        "top_risks": top_risks,
         "missing_sections": missing_sections,
         "key_obligations": key_obligations,
         "red_flags": red_flags,
         "suggested_improvements": suggested_improvements,
+        "action_plan": action_plan,
+        "product_insights": product_insights,
+        "product_report": product_report,
         "legacy_report": {
             "risk_score": risk_score,
             "missing_sections": missing_sections,
@@ -519,7 +817,7 @@ def analyze_document(
         "ml_sections": ml_sections,
         "metadata": {
             "extracted_characters": len(text),
-            "analysis_type": "docusense_rule_based_v2 + ml_classifier",
+            "analysis_type": "docusense_product_report_v3 + ml_classifier",
             "ml_conf_threshold": CONF_THRESHOLD,
             "ml_sections_returned": len(ml_sections),
         }

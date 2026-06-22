@@ -12,6 +12,12 @@ from __future__ import annotations
 
 
 DOCUMENT_TYPE_KEYWORDS = {
+    "education_hr_policy": [
+        "school", "teacher", "staff", "employee group", "employee groups",
+        "non-exempt", "exempt", "classified", "certificated", "district",
+        "school year", "benefits", "salary schedule", "work calendar",
+        "bargaining", "lp", "lpsb", "bins"
+    ],
     "hr_policy": [
         "employee", "handbook", "code of conduct", "harassment",
         "leave policy", "pto", "attendance", "disciplinary", "workplace"
@@ -41,10 +47,18 @@ DOCUMENT_TYPE_LABELS = {
     "offer_letter": "Offer Letter",
     "contract": "Contract",
     "compliance_document": "Compliance Document",
+    "education_hr_policy": "Education / School Policy",
     "general_document": "General Document",
 }
 
 EXPECTED_CLAUSES = {
+    "education_hr_policy": {
+        "Employee Group / Classification": ["employee group", "employee groups", "exempt", "non-exempt", "classified", "certificated"],
+        "Compensation / Salary Schedule": ["salary", "salary schedule", "pay", "compensation", "wage"],
+        "Benefits": ["benefits", "insurance", "health", "retirement"],
+        "Work Calendar / Schedule": ["calendar", "school year", "work day", "work schedule", "hours"],
+        "Leave / Time Off": ["leave", "sick", "vacation", "pto", "time off"],
+    },
     "hr_policy": {
         "Code of Conduct": ["code of conduct", "conduct policy"],
         "Anti-Harassment": ["anti-harassment", "harassment", "equal opportunity"],
@@ -151,17 +165,40 @@ def normalize_text(text: str) -> str:
     return text.lower()
 
 
-def detect_document_type(text: str) -> dict:
+def detect_document_type(text: str, filename: str = "") -> dict:
     lower_text = normalize_text(text)
+    lower_filename = normalize_text(filename)
+    combined_text = f"{lower_filename} {lower_text}"
     scores = {}
 
     for doc_type, keywords in DOCUMENT_TYPE_KEYWORDS.items():
-        scores[doc_type] = sum(1 for keyword in keywords if keyword in lower_text)
+        score = 0
+        for keyword in keywords:
+            if keyword in lower_text:
+                score += 1
+            if keyword in lower_filename:
+                score += 4
+        scores[doc_type] = score
+
+    education_signals = [
+        "school", "employee group", "employee groups", "non-exempt",
+        "classified", "certificated", "district", "lpsb", "bins"
+    ]
+    if any(signal in combined_text for signal in education_signals):
+        scores["education_hr_policy"] = scores.get("education_hr_policy", 0) + 10
+
+    offer_strong_signals = [
+        "we are pleased to offer", "offer you", "position of",
+        "start date", "employment offer", "base salary", "compensation"
+    ]
+    offer_signal_count = sum(1 for signal in offer_strong_signals if signal in combined_text)
+    if offer_signal_count < 2:
+        scores["offer_letter"] = max(0, scores.get("offer_letter", 0) - 8)
 
     best_type = max(scores, key=scores.get)
-    total_score = sum(scores.values())
+    total_score = sum(value for value in scores.values() if value > 0)
 
-    if scores[best_type] == 0:
+    if scores[best_type] <= 0:
         best_type = "general_document"
 
     confidence = 0.0
@@ -393,7 +430,7 @@ def build_risk_intelligence_report(
     ml_summary = ml_summary or []
     ml_sections = ml_sections or []
 
-    classification = detect_document_type(text)
+    classification = detect_document_type(text, source_filename)
     document_type = classification["type"]
     document_label = classification["label"]
 

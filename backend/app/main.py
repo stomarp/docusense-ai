@@ -10,6 +10,7 @@ This file:
 """
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uuid
 
@@ -41,6 +42,17 @@ app = FastAPI(
     title="DocuSense AI",
     description="AI document risk analyzer backend for HR policies, leases, contracts, and compliance documents",
     version="0.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create DB tables if not present
@@ -770,14 +782,6 @@ def analyze_document(
    
 
 
-    intelligence_report = build_risk_intelligence_report(
-        text=text,
-        source_filename=stored_filename,
-        ml_summary=ml_summary,
-        ml_sections=ml_sections,
-    )
-    ai_review = build_ai_review(intelligence_report)
-
     # Find document in DB
     doc = db.query(DBDocument).filter(
         DBDocument.stored_filename == stored_filename
@@ -785,6 +789,14 @@ def analyze_document(
 
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found in DB")
+
+    intelligence_report = build_risk_intelligence_report(
+        text=text,
+        source_filename=doc.original_filename,
+        ml_summary=ml_summary,
+        ml_sections=ml_sections,
+    )
+    ai_review = build_ai_review(intelligence_report)
 
     # Save report
     report = AnalysisReport(

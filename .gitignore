@@ -212,3 +212,6 @@ ml/models/*.joblib
 .venv-ml/
 __pycache__/
 *.pyc
+# Keep frontend source libraries tracked
+!frontend/lib/
+!frontend/lib/**

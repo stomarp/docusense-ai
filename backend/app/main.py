@@ -10,6 +10,7 @@ This file:
 """
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uuid
 
@@ -41,6 +42,17 @@ app = FastAPI(
     title="DocuSense AI",
     description="AI document risk analyzer backend for HR policies, leases, contracts, and compliance documents",
     version="0.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create DB tables if not present

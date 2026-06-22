@@ -1,17 +1,15 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16
-    container_name: docuguard_db
+    container_name: docusense_db
     environment:
-      POSTGRES_USER: docuguard
-      POSTGRES_PASSWORD: docuguard
-      POSTGRES_DB: docuguard
+      POSTGRES_USER: docusense
+      POSTGRES_PASSWORD: docusense
+      POSTGRES_DB: docusense
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
-      - docuguard_pgdata:/var/lib/postgresql/data
+      - docusense_pgdata:/var/lib/postgresql/data
 
 volumes:
-  docuguard_pgdata:
+  docusense_pgdata:

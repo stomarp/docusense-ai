@@ -5,7 +5,7 @@ import os
 # Connection string for local Postgres from docker-compose
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://docuguard:docuguard@localhost:5433/docuguard"
+    "postgresql://docusense:docusense@localhost:5434/docusense"
 )
 
 # Engine manages DB connections

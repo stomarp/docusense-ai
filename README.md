@@ -1,316 +1,221 @@
-#  DocuGuard HR
+# DocuSense AI
 
-> Intelligent HR Policy Compliance Analyzer  
-> Hybrid Rule-Based + Machine Learning Document Intelligence System
+AI-powered document risk analyzer for HR policies, leases, contracts, offer letters, vendor agreements, and compliance documents.
 
----
-
-##  Overview
-
-DocuGuard HR is a backend system that analyzes HR policy documents for compliance risks using:
-
--  FastAPI (REST API backend)
--  PostgreSQL (persistent storage)
--  Rule-based compliance engine
--  Machine Learning section classifier (TF-IDF + Logistic Regression)
--  Dockerized database setup
-
-It allows uploading HR documents (PDF, DOCX, TXT), extracting text, analyzing compliance risk, classifying sections using ML, and storing full analysis history.
+DocuSense AI helps users upload complex documents and receive a clear, plain-English risk report with a summary, risk score, missing sections, key obligations, red flags, and suggested improvements.
 
 ---
 
-##  Architecture
-```text
-DocuGuard HR
-│
-├── backend/
-│ ├── app/
-│ │ ├── db/
-│ │ │ ├── database.py
-│ │ │ └── models.py
-│ │ ├── ml/
-│ │ │ └── section_classifier.py
-│ │ └── main.py
-│ └── requirements.txt
-│
-├── ml/
-│ ├── data/
-│ │ └── sections_train.csv
-│ ├── src/
-│ │ ├── train.py
-│ │ └── predict.py
-│ └── models/
-│
-└── docker-compose.yml
-```
+## Overview
+
+DocuSense AI is an end-to-end document intelligence system built from the original DocuGuard HR backend.
+
+The project started as an HR policy compliance analyzer and is now being expanded into a broader document risk analyzer for multiple document types.
+
+It currently demonstrates:
+
+- FastAPI REST API backend
+- PostgreSQL persistent storage
+- SQLAlchemy database modeling
+- Rule-based risk analysis
+- Machine learning section classification
+- PDF, DOCX, and TXT document handling
+- Dockerized database setup
 
 ---
 
-##  Features
+## Supported Document Types
 
-###  Document Management
+The product roadmap supports:
 
-- Upload PDF, DOCX, TXT
-- Store files locally
-- Persist metadata in PostgreSQL
-- Maintain full report history
-
----
-
-### ⚖️ Rule-Based Compliance Engine
-
-Checks for required HR sections:
-
-- Code of Conduct  
-- Anti-Harassment Policy  
-- Leave Policy  
-- Working Hours & Attendance  
-- Disciplinary Action Policy  
-
-Detects:
-- Missing mandatory sections  
-- Risky / vague language  
-- Calculates risk score (0–100)
-
-#### Risk Score Formula
-
-```text
-Risk Score = (20 × Missing Sections) + Risky Phrase Occurrences
-(Max capped at 100)
-```
----
-
-
-##  Machine Learning Section Classification
-
-### Model
-
-- TF-IDF Vectorizer (1–2 grams)
-- Logistic Regression classifier
-
-### Capabilities
-
-- Paragraph-level classification  
-- Confidence scoring  
-- Confidence threshold filtering  
-- ML summary grouping  
-- Hybrid rule-based + ML analysis  
+- HR policies
+- Employee handbooks
+- Lease agreements
+- Offer letters
+- Vendor contracts
+- Compliance documents
+- General business documents
 
 ---
 
-##  Database Schema
+## Core Features
 
-### Documents Table
+### Document Upload
 
-- id  
-- original_filename  
-- stored_filename  
-- file_type  
-- created_at  
+- Upload PDF, DOCX, or TXT documents
+- Store document metadata
+- Save uploaded files locally
+- Keep report history
 
-### Analysis Reports Table
+### Document Intelligence
 
-- id  
-- document_id (Foreign Key)  
-- risk_score  
-- missing_sections (JSON)  
-- risky_phrases (JSON)  
-- created_at  
+- Extract text from uploaded files
+- Detect missing sections
+- Identify vague or risky language
+- Classify document sections using ML
+- Generate structured analysis results
 
----
+### Risk Report
 
-##  Setup Instructions
+Each report is designed to include:
 
-### 1️ Start PostgreSQL (Docker)
-
-```bash
-docker compose up -d
-```
-
-Database connection:
-
-```
-postgresql://docuguard:docuguard@localhost:5433/docuguard
-```
+- Plain-English summary
+- Risk score
+- Missing sections
+- Key obligations
+- Red flags
+- Suggested improvements
+- Exportable report in a future phase
 
 ---
 
-###  Create Virtual Environment
+## Current Backend Capabilities
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-```
+The existing backend supports:
 
----
+- Health check endpoint
+- Document upload
+- Text extraction
+- Rule-based analysis
+- ML section classification
+- Document listing
+- Report history
 
-###  Train ML Model
+Existing API flow:
 
-```bash
-python ml/src/train.py
-```
-
-Model will be saved to:
-
-```
-ml/models/section_model.joblib
-```
+Upload Document
+-> Extract Text
+-> Analyze Risk
+-> Store Report
+-> Return Structured Result
 
 ---
 
-###  Run FastAPI Server
+## Architecture
 
-```bash
-uvicorn backend.app.main:app --reload
-```
+DocuSense AI
 
-Open Swagger UI:
+- backend/
+  - app/
+    - db/
+      - database.py
+      - models.py
+    - ml/
+      - section_classifier.py
+    - main.py
+  - requirements.txt
 
-```
-http://127.0.0.1:8000/docs
-```
+- ml/
+  - data/
+    - sections_train.csv
+  - src/
+    - train.py
+    - predict.py
+  - models/
 
----
-
-##  API Endpoints
-
-###  Health Check
-
-```
-GET /health
-```
-
----
-
-###  Upload Document
-
-```
-POST /upload
-```
-
-Response:
-
-```json
-{
-  "message": "File uploaded and saved",
-  "document_id": 1,
-  "stored_filename": "abc123.pdf"
-}
-```
+- docs/
+- docker-compose.yml
+- README.md
 
 ---
 
-###  Extract Text
+## Tech Stack
 
-```
-POST /extract-text/{stored_filename}
-```
-
----
-
-###  Analyze Document
-
-```
-POST /analyze/{stored_filename}
-```
-
-Returns:
-
-- Risk Score  
-- Missing Sections  
-- Risky Phrase Counts  
-- ML Section Predictions  
-- ML Summary  
-- Metadata  
+- Backend: FastAPI
+- Database: PostgreSQL
+- ORM: SQLAlchemy
+- ML: scikit-learn
+- Vectorizer: TF-IDF
+- Model: Logistic Regression
+- DevOps: Docker
+- API Docs: OpenAPI / Swagger
+- Frontend: Next.js in a later phase
+- Deployment: Render and Vercel in a later phase
 
 ---
 
-###  List All Documents
+## MVP Scope
 
-```
-GET /documents
-```
+The first DocuSense AI MVP will focus on:
 
----
-
-###  Get Report History
-
-```
-GET /documents/{document_id}/reports
-```
-
----
-
-## Example Analysis Response
-
-```json
-{
-  "document_id": 8,
-  "report_id": 5,
-  "report": {
-    "risk_score": 80,
-    "missing_sections": [...],
-    "risky_phrases": {...}
-  },
-  "ml_summary": {...},
-  "metadata": {
-    "analysis_type": "rule_based_v1 + ml_classifier",
-    "ml_conf_threshold": 0.35
-  }
-}
-```
-
----
-
-##  Tech Stack
-
-| Layer     | Technology |
-|-----------|------------|
-| Backend   | FastAPI |
-| Database  | PostgreSQL |
-| ORM       | SQLAlchemy |
-| ML        | scikit-learn |
-| Vectorizer| TF-IDF |
-| Model     | Logistic Regression |
-| DevOps    | Docker |
-| API Docs  | OpenAPI 3.1 (Swagger) |
-
----
-
-##  Why This Project Is Strong
-
-This project demonstrates:
-
-- REST API design  
-- Database schema modeling  
-- File handling  
-- Text extraction  
-- Rule-based NLP  
-- ML training + inference pipeline  
-- Confidence-based filtering  
-- Dockerized infrastructure  
-- Hybrid AI system design  
-
-This is not CRUD — it's an intelligent document analysis system.
+- Stabilizing the existing backend
+- Rebranding DocuGuard HR into DocuSense AI
+- Expanding risk analysis beyond HR documents
+- Adding document type detection
+- Returning clearer report fields:
+  - Summary
+  - Risk score
+  - Missing sections
+  - Key obligations
+  - Red flags
+  - Suggested improvements
 
 ---
 
 ## Roadmap
 
-- OCR support for scanned PDFs  
-- Larger HR dataset for ML  
-- Transformer-based model (BERT)  
-- Frontend dashboard (React)  
-- Authentication & RBAC  
-- Deployment to AWS / Azure  
-- CI/CD pipeline  
-- Background job processing  
+### Phase 1: Rebrand and Stabilize
+
+- Rename product from DocuGuard HR to DocuSense AI
+- Update README and documentation
+- Confirm local setup
+- Confirm existing endpoints work
+- Clean API response naming
+
+### Phase 2: Multi-Document Risk Analyzer
+
+- Add document type detection
+- Add support for leases, offer letters, contracts, and compliance documents
+- Improve risk scoring
+- Add key obligations
+- Add red flags
+- Add suggested improvements
+
+### Phase 3: Frontend MVP
+
+- Add Next.js frontend
+- Upload page
+- Analysis results page
+- Clean SaaS-style dashboard
+- Connect frontend to backend API
+
+### Phase 4: AI Upgrade
+
+- Add OpenAI-powered analysis
+- Generate stronger summaries
+- Add document-specific recommendations
+- Improve red flag explanations
+
+### Phase 5: Export and Deployment
+
+- Add exportable PDF report
+- Deploy backend to Render
+- Deploy frontend to Vercel
+- Add production smoke tests
 
 ---
 
-##  Author
+## Why This Project Is Strong
 
-Swati   
-MS Applied Computer Science  
-Software Development & AI/ML
+DocuSense AI is not a simple CRUD project.
+
+It demonstrates:
+
+- Backend API design
+- Database schema modeling
+- File upload handling
+- Text extraction
+- Rule-based NLP
+- Machine learning inference
+- Risk scoring
+- Document intelligence
+- AI product thinking
+- Dockerized infrastructure
+
+---
+
+## Author
+
+Swati
+MS Applied Computer Science
+Software Development and AI/ML

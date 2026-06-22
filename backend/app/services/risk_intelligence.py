@@ -407,7 +407,7 @@ def build_risk_intelligence_report(
     ml_summary = ml_summary or []
     ml_sections = ml_sections or []
 
-    classification = detect_document_type(text)
+    classification = detect_document_type(text, source_filename)
     document_type = classification["type"]
     document_label = classification["label"]
 

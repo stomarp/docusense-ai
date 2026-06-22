@@ -1,5 +1,5 @@
 """
-DocuGuard - Main FastAPI Application
+DocuSense AI - Main FastAPI Application
 
 This file:
 - Handles file uploads
@@ -35,8 +35,8 @@ from backend.app.ml.section_classifier import SectionClassifier
 # -------------------------------------------------------
 
 app = FastAPI(
-    title="DocuGuard",
-    description="HR Policy Compliance Analyzer Backend",
+    title="DocuSense AI",
+    description="AI document risk analyzer backend for HR policies, leases, contracts, and compliance documents",
     version="0.1.0"
 )
 
@@ -194,7 +194,7 @@ def build_ml_summary(ml_sections: list[dict]) -> list[dict]:
 
 @app.get("/health")
 def health_check():
-    return {"status": "DocuGuard is running"}
+    return {"status": "DocuSense AI is running"}
 
 
 # -------------------------------------------------------

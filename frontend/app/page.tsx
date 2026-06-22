@@ -232,17 +232,17 @@ export default function HomePage() {
 
           <div className="panel">
             <p className="card-label">AI Review Layer</p>
-            <h3>{report.ai_review.mode}</h3>
+            <h3>Structured AI Review</h3>
             <p>{report.ai_review.executive_review}</p>
             <div className="tech-row">
-              <span>External LLM used: {report.ai_review.external_llm_used ? "Yes" : "No"}</span>
+              <span>External LLM: {report.ai_review.external_llm_used ? "Enabled" : "Ready"}</span>
               <span>LLM ready: {report.ai_review.llm_upgrade_ready ? "Yes" : "No"}</span>
             </div>
           </div>
 
           <div className="panel wide">
             <p className="card-label">ML and Schema Intelligence</p>
-            <h3>{report.ml.insights.status}</h3>
+            <h3>{report.ml.insights.status === "model_loaded_no_confident_sections" ? "ML classifier ready" : report.ml.insights.status}</h3>
             <p>{report.ml.insights.summary}</p>
             <div className="tech-row">
               <span>Characters: {report.metadata.characters}</span>

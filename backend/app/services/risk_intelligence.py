@@ -12,6 +12,12 @@ from __future__ import annotations
 
 
 DOCUMENT_TYPE_KEYWORDS = {
+    "education_hr_policy": [
+        "school", "teacher", "staff", "employee group", "employee groups",
+        "non-exempt", "exempt", "classified", "certificated", "district",
+        "school year", "benefits", "salary schedule", "work calendar",
+        "bargaining", "lp", "lpsb", "bins"
+    ],
     "hr_policy": [
         "employee", "handbook", "code of conduct", "harassment",
         "leave policy", "pto", "attendance", "disciplinary", "workplace"
@@ -41,10 +47,18 @@ DOCUMENT_TYPE_LABELS = {
     "offer_letter": "Offer Letter",
     "contract": "Contract",
     "compliance_document": "Compliance Document",
+    "education_hr_policy": "Education / School Policy",
     "general_document": "General Document",
 }
 
 EXPECTED_CLAUSES = {
+    "education_hr_policy": {
+        "Employee Group / Classification": ["employee group", "employee groups", "exempt", "non-exempt", "classified", "certificated"],
+        "Compensation / Salary Schedule": ["salary", "salary schedule", "pay", "compensation", "wage"],
+        "Benefits": ["benefits", "insurance", "health", "retirement"],
+        "Work Calendar / Schedule": ["calendar", "school year", "work day", "work schedule", "hours"],
+        "Leave / Time Off": ["leave", "sick", "vacation", "pto", "time off"],
+    },
     "hr_policy": {
         "Code of Conduct": ["code of conduct", "conduct policy"],
         "Anti-Harassment": ["anti-harassment", "harassment", "equal opportunity"],

@@ -379,3 +379,52 @@ p {
     padding: 28px;
   }
 }
+
+.report-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.report-actions button {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.report-actions button:hover {
+  background: #f8fafc;
+}
+
+@media print {
+  .app-header,
+  .upload-card,
+  .overview-section,
+  .report-actions {
+    display: none;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .page-shell {
+    padding: 0;
+  }
+
+  .hero {
+    display: none;
+  }
+
+  .panel,
+  .score-card,
+  .report-title-card {
+    box-shadow: none;
+  }
+}

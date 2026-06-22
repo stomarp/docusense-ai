@@ -12,6 +12,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Upload a PDF, DOCX, or TXT document.");
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   async function handleAnalyze() {
     if (!file) {
@@ -38,6 +39,32 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyExecutiveSummary() {
+    if (!report) {
+      return;
+    }
+
+    const summary = [
+      "DocuSense AI Report",
+      "Document: " + report.document.label,
+      "Risk level: " + report.scores.risk_level,
+      "Risk score: " + report.scores.risk_score,
+      "Quality score: " + report.scores.quality_score,
+      "",
+      report.summary.executive_summary,
+      "",
+      "Next action: " + report.summary.next_best_action
+    ].join("\n");
+
+    await navigator.clipboard.writeText(summary);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  function printReport() {
+    window.print();
   }
 
   return (
@@ -158,6 +185,11 @@ export default function HomePage() {
             <ScoreCard label="Findings" value={report.findings.top_risks.length} helper="Prioritized risks" />
           </div>
 
+          <div className="report-actions">
+            <button onClick={copyExecutiveSummary}>{copied ? "Copied summary" : "Copy executive summary"}</button>
+            <button onClick={printReport}>Print report</button>
+          </div>
+
           <div className="panel wide">
             <p className="card-label">Executive review</p>
             <h3>{report.summary.reviewer_verdict || "Automated review completed."}</h3>
@@ -219,8 +251,8 @@ export default function HomePage() {
               <h3>Structured AI review</h3>
               <p>{report.ai_review.executive_review}</p>
               <div className="tag-row">
-                <span>External LLM: {report.ai_review.external_llm_used ? "Enabled" : "Ready"}</span>
-                <span>LLM ready: {report.ai_review.llm_upgrade_ready ? "Yes" : "No"}</span>
+                <span>External LLM: {report.ai_review.external_llm_used ? "Enabled" : "Not enabled"}</span>
+                <span>LLM integration ready: {report.ai_review.llm_upgrade_ready ? "Yes" : "No"}</span>
               </div>
             </div>
           </div>

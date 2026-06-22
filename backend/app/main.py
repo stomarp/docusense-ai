@@ -29,6 +29,7 @@ from backend.app.db.models import Document as DBDocument, AnalysisReport
 # ML classifier
 from backend.app.ml.section_classifier import SectionClassifier
 from backend.app.services.risk_intelligence import build_risk_intelligence_report
+from backend.app.services.report_response import build_analysis_response
 from backend.app.services.ai_review import build_ai_review
 
 
@@ -797,49 +798,20 @@ def analyze_document(
     db.commit()
     db.refresh(report)
 
-    return {
-        "document_id": doc.id,
-        "report_id": report.id,
-        "intelligence_report": intelligence_report,
-        "executive_summary": intelligence_report["executive_summary"],
-        "document_classification": intelligence_report["document_classification"],
-        "risk_scores": intelligence_report["risk_scores"],
-        "clause_coverage": intelligence_report["clause_coverage"],
-        "risk_findings": intelligence_report["risk_findings"],
-        "ai_review": ai_review,
-        "ai_review_notes": intelligence_report["ai_review_notes"],
-        "document_type": document_type,
-        "document_type_label": get_document_type_label(document_type),
-        "summary": summary,
-        "risk_level": risk_level,
-        "risk_score": risk_score,
-        "quality_score": quality_score,
-        "review_priority": review_priority,
-        "reviewer_verdict": reviewer_verdict,
-        "scoring_breakdown": scoring_breakdown,
-        "issue_counts": issue_counts,
-        "top_risks": top_risks,
-        "missing_sections": missing_sections,
-        "key_obligations": key_obligations,
-        "red_flags": red_flags,
-        "suggested_improvements": suggested_improvements,
-        "action_plan": action_plan,
-        "product_insights": product_insights,
-        "product_report": product_report,
-        "legacy_report": {
+    return build_analysis_response(
+        document_id=doc.id,
+        report_id=report.id,
+        stored_filename=stored_filename,
+        intelligence_report=intelligence_report,
+        ai_review=ai_review,
+        ml_summary=ml_summary,
+        ml_sections=ml_sections,
+        legacy_report={
             "risk_score": risk_score,
             "missing_sections": missing_sections,
             "risky_phrases": risky_phrases,
         },
-        "ml_summary": ml_summary,
-        "ml_sections": ml_sections,
-        "metadata": {
-            "extracted_characters": len(text),
-            "analysis_type": "docusense_product_report_v3 + ml_classifier",
-            "ml_conf_threshold": CONF_THRESHOLD,
-            "ml_sections_returned": len(ml_sections),
-        }
-    }
+    )
 
     
 # -------------------------------------------------------

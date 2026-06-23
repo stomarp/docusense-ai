@@ -162,6 +162,9 @@ def _rewrite_example_for_phrase(document_type: str, phrase: str, recommendation:
         },
     }
 
+    if document_type == "hr_policy_manual":
+        document_type = "hr_policy"
+
     default_examples = examples.get(document_type, examples["contract"])
     strategy, example = default_examples.get(
         phrase,

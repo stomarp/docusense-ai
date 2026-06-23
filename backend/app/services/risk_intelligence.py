@@ -12,6 +12,14 @@ from __future__ import annotations
 
 
 DOCUMENT_TYPE_KEYWORDS = {
+    "hr_policy_manual": [
+        "human resources policy manual", "hr policy manual", "policy manual",
+        "employee handbook", "employment policies", "general policies",
+        "equal employment opportunity", "harassment", "probationary period",
+        "performance evaluations", "telecommuting policy", "compensation policies",
+        "leave coverage policies", "family and medical leave", "sick leave",
+        "military leave", "personnel files", "disciplinary action"
+    ],
     "education_hr_policy": [
         "school", "teacher", "staff", "employee group", "employee groups",
         "non-exempt", "exempt", "classified", "certificated", "district",
@@ -42,6 +50,7 @@ DOCUMENT_TYPE_KEYWORDS = {
 }
 
 DOCUMENT_TYPE_LABELS = {
+    "hr_policy_manual": "HR Policy Manual",
     "hr_policy": "HR Policy",
     "lease_agreement": "Lease Agreement",
     "offer_letter": "Offer Letter",
@@ -52,6 +61,16 @@ DOCUMENT_TYPE_LABELS = {
 }
 
 EXPECTED_CLAUSES = {
+    "hr_policy_manual": {
+        "Equal Employment Opportunity": ["equal employment opportunity", "eeo", "non-discrimination", "discrimination"],
+        "Harassment / Conduct": ["harassment", "conduct", "disciplinary", "workplace behavior"],
+        "Employment Authorization / Hiring": ["employment authorization", "i-9", "recruitment", "selection", "hiring"],
+        "Performance Evaluation": ["performance evaluation", "employee evaluation", "goals", "review period"],
+        "Compensation / Pay": ["compensation", "salary", "pay period", "overtime", "payroll"],
+        "Leave / Time Off": ["leave", "annual leave", "sick leave", "family and medical leave", "fmla"],
+        "Remote Work / Telecommuting": ["telecommuting", "remote work", "work from home", "alternate work location"],
+        "Confidentiality / Personnel Files": ["confidentiality", "personnel files", "personal information", "records"],
+    },
     "education_hr_policy": {
         "Employee Group / Classification": ["employee group", "employee groups", "exempt", "non-exempt", "classified", "certificated"],
         "Compensation / Salary Schedule": ["salary", "salary schedule", "pay", "compensation", "wage"],
@@ -186,6 +205,26 @@ def detect_document_type(text: str, filename: str = "") -> dict:
     ]
     if any(signal in combined_text for signal in education_signals):
         scores["education_hr_policy"] = scores.get("education_hr_policy", 0) + 10
+
+    hr_manual_signals = [
+        "human resources policy manual",
+        "hr policy manual",
+        "employment policies",
+        "compensation policies",
+        "leave coverage policies",
+        "telecommuting policy",
+        "performance evaluations",
+        "family and medical leave",
+        "sick leave",
+        "personnel files",
+    ]
+    if any(signal in combined_text for signal in hr_manual_signals):
+        scores["hr_policy_manual"] = scores.get("hr_policy_manual", 0) + 30
+
+        # Education words describe the institution/domain, but the document type
+        # should still be HR Policy Manual when the manual structure is explicit.
+        if "education_hr_policy" in scores:
+            scores["education_hr_policy"] = max(0, scores.get("education_hr_policy", 0) - 8)
 
     offer_strong_signals = [
         "we are pleased to offer", "offer you", "position of",

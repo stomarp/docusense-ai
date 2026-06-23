@@ -445,3 +445,44 @@ p {
 .secondary-button:hover {
   background: #f8fafc;
 }
+
+/* Product polish: hide native browser file input inside the upload card */
+.upload-dropzone input[type="file"],
+.upload-card input[type="file"] {
+  display: none !important;
+}
+
+.upload-dropzone {
+  width: 100%;
+  margin-top: 18px;
+  min-height: 132px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.upload-dropzone:hover {
+  background: #f1f5f9;
+  border-color: #2563eb;
+}
+
+.upload-dropzone span {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.upload-dropzone strong {
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.4;
+  word-break: break-word;
+}

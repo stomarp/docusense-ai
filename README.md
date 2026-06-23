@@ -20,6 +20,7 @@ The product helps users review HR policies, school policies, contracts, leases, 
 | Frontend | `frontend/` |
 | Backend | `backend/` |
 | API Docs | `http://127.0.0.1:8010/docs` |
+| Deployment Guide | `docs/DEPLOYMENT_GUIDE.md` |
 | Local Frontend | `http://localhost:3001` |
 
 ---

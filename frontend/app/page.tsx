@@ -160,7 +160,7 @@ export default function HomePage() {
   <section>
     <div class="label">AI Review Layer</div>
     <p>${escapeHtml(report.ai_review.executive_review)}</p>
-    <p><em>${escapeHtml(report.ai_review.user_warning)}</em></p>
+    <p><em>${escapeHtml(report.ai_review.disclaimer)}</em></p>
   </section>
 </body>
 </html>`;
@@ -191,6 +191,11 @@ export default function HomePage() {
     setError("");
     setStatusMessage("Upload a PDF, DOCX, or TXT document.");
   }
+
+  const documentDisplayName =
+    (report?.document as { original_filename?: string } | undefined)?.original_filename ||
+    report?.document.stored_filename ||
+    "DocuSense analysis report";
 
   return (
     <main className="page-shell">
@@ -316,9 +321,9 @@ export default function HomePage() {
           </div>
 
           <div className="report-actions">
-            <div>
+            <div className="report-action-meta">
               <strong>{report.debug?.demo ? "Sample report loaded" : "Analysis report ready"}</strong>
-              <span>{report.document.original_filename}</span>
+              <span>{documentDisplayName}</span>
             </div>
             <button onClick={copyExecutiveSummary}>{copied ? "Copied summary" : "Copy summary"}</button>
             <button onClick={downloadReport}>Download HTML</button>

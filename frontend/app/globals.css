@@ -486,3 +486,26 @@ p {
   line-height: 1.4;
   word-break: break-word;
 }
+
+.report-action-meta {
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.report-action-meta strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.report-action-meta span {
+  color: #64748b;
+  font-size: 13px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

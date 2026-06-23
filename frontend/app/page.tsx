@@ -193,6 +193,7 @@ export default function HomePage() {
   }
 
   const documentDisplayName =
+    file?.name ||
     (report?.document as { original_filename?: string } | undefined)?.original_filename ||
     report?.document.stored_filename ||
     "DocuSense analysis report";

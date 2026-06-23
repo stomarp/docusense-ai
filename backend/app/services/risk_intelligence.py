@@ -486,6 +486,19 @@ def calculate_intelligence_score(*args, **kwargs) -> dict:
     raw_score = missing_penalty + coverage_penalty + language_penalty
     risk_score = max(0, min(100, raw_score - obligation_credit - coverage_credit - complete_manual_credit))
 
+    high_risk_count = sum(1 for risk in language_risks if risk.get("severity") == "High")
+    medium_risk_count = sum(1 for risk in language_risks if risk.get("severity") == "Medium")
+
+    # Product calibration:
+    # A document with strong clause coverage can still require attention if it contains
+    # high-impact phrases such as "sole discretion" or "without notice".
+    if high_risk_count >= 2 and risk_score < 35:
+        risk_score = 35
+    elif high_risk_count == 1 and risk_score < 28:
+        risk_score = 28
+    elif medium_risk_count >= 2 and risk_score < 25:
+        risk_score = 25
+
     if risk_score >= 75:
         risk_level = "Critical"
     elif risk_score >= 50:

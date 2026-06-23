@@ -84,7 +84,7 @@ The platform checks expected sections for the detected document type. For an HR 
 
 ### Calibrated Risk Scoring
 
-DocuSense AI uses calibrated scoring so long documents are not unfairly punished for common policy words like “may” or “reasonable.” It prioritizes stronger risk signals such as “sole discretion” and “without notice.”
+DocuSense AI uses calibrated scoring so long documents are not unfairly punished for common policy words like "may" or "reasonable." It prioritizes stronger risk signals such as "sole discretion" and "without notice."
 
 ### AI-Style Review Layer
 

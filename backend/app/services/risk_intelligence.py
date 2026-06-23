@@ -490,7 +490,7 @@ def calculate_intelligence_score(*args, **kwargs) -> dict:
         "quality_score": quality_score,
         "coverage_penalty": coverage_penalty,
         "missing_clause_penalty": missing_penalty,
-        "language_penalty": language_penalty,
+        "language_risk_penalty": language_penalty,
         "obligation_credit": obligation_credit,
         "coverage_credit": coverage_credit,
         "drivers": drivers,
@@ -600,16 +600,20 @@ def build_executive_summary(*args, **kwargs) -> str:
     if language_risks is None and len(args) >= 4:
         language_risks = args[3]
 
-    classification = classification or {}
+    if isinstance(classification, dict):
+        label = classification.get("label", "General Document")
+    else:
+        label = str(classification or "General Document")
+
     risk_scores = risk_scores or {}
     clause_coverage = clause_coverage or {}
     language_risks = language_risks or []
 
-    label = classification.get("label", "General Document")
     risk_level = risk_scores.get("risk_level", "Unknown")
     risk_score = risk_scores.get("risk_score", "N/A")
     quality_score = risk_scores.get("quality_score", "N/A")
     coverage = clause_coverage.get("coverage_percent", 0)
+    missing_count = len(clause_coverage.get("missing_clauses", []) or [])
 
     if risk_level in ["Low", "Medium"] and coverage >= 80:
         verdict = "This document appears structurally complete and needs targeted wording review before final use."
@@ -624,9 +628,10 @@ def build_executive_summary(*args, **kwargs) -> str:
         f"{verdict} DocuSense classified this document as {label}. "
         f"The calibrated risk level is {risk_level} with a risk score of {risk_score}/100 "
         f"and a quality score of {quality_score}/100. Clause coverage is {coverage}%, "
-        f"with {len(clause_coverage.get('missing_clauses', []) or [])} missing expected clause(s) "
-        f"and {len(language_risks)} prioritized language finding(s)."
+        f"with {missing_count} missing expected clause(s) and "
+        f"{len(language_risks)} prioritized language finding(s)."
     )
+
 
 def build_risk_intelligence_report(
     text: str,

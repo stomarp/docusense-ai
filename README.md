@@ -248,12 +248,25 @@ npm --prefix frontend run build
 
 ## Screenshots
 
-Recommended screenshot names:
+### Landing and Upload Flow
 
-- `docs/screenshots/landing.png`
-- `docs/screenshots/report-dashboard.png`
-- `docs/screenshots/suggested-rewrites.png`
-- `docs/screenshots/export-workflow.png`
+![DocuSense AI landing and upload flow](docs/screenshots/landing.png)
+
+### Uploaded Document State
+
+![DocuSense AI uploaded document state](docs/screenshots/upload-selected.png)
+
+### Report Dashboard
+
+![DocuSense AI report dashboard](docs/screenshots/report-dashboard.png)
+
+### Top Risks and Action Plan
+
+![DocuSense AI top risks and action plan](docs/screenshots/top-risks-action-plan.png)
+
+### Suggested Rewrites and AI Review
+
+![DocuSense AI suggested rewrites and AI review](docs/screenshots/suggested-rewrites-ai-review.png)
 
 ---
 

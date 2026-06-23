@@ -68,14 +68,105 @@ export default function HomePage() {
     window.print();
   }
 
+  function escapeHtml(value: string) {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
   function downloadReport() {
     if (!report) {
       return;
     }
 
-    const fileName = `${report.document.label.toLowerCase().replaceAll(" ", "-").replaceAll("/", "-")}-docusense-report.json`;
-    const blob = new Blob([JSON.stringify(report, null, 2)], {
-      type: "application/json",
+    const fileName = `${report.document.label.toLowerCase().replaceAll(" ", "-").replaceAll("/", "-")}-docusense-report.html`;
+
+    const risks = report.findings.top_risks
+      .map(
+        (risk) => `<li><strong>${escapeHtml(risk.severity || "Risk")}:</strong> ${escapeHtml(risk.message)}<br/><span>${escapeHtml(risk.recommendation || "")}</span></li>`
+      )
+      .join("");
+
+    const actions = report.recommendations.action_plan
+      .map(
+        (item) => `<li><strong>${escapeHtml(item.priority)}:</strong> ${escapeHtml(item.action)}<br/><span>${escapeHtml(item.reason)}</span></li>`
+      )
+      .join("");
+
+    const rewrites = report.recommendations.suggested_rewrites
+      .map(
+        (rewrite) => `<li><strong>${escapeHtml(rewrite.risk_category)}:</strong> ${escapeHtml(rewrite.example_rewrite)}</li>`
+      )
+      .join("");
+
+    const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DocuSense AI Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #0f172a; line-height: 1.5; }
+    .header { border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px; }
+    .label { color: #2563eb; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
+    h1 { margin: 8px 0; font-size: 34px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
+    .card { border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; background: #f8fafc; }
+    .value { font-size: 30px; font-weight: 900; }
+    section { margin-top: 28px; }
+    li { margin-bottom: 14px; }
+    span { color: #475569; }
+    .notice { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 14px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="label">DocuSense AI Report</div>
+    <h1>${escapeHtml(report.document.label)}</h1>
+    <p>Risk level: <strong>${escapeHtml(report.scores.risk_level)}</strong> · Confidence: ${Math.round(report.document.classification_confidence * 100)}%</p>
+  </div>
+
+  <div class="grid">
+    <div class="card"><div class="label">Risk Score</div><div class="value">${report.scores.risk_score}</div></div>
+    <div class="card"><div class="label">Quality Score</div><div class="value">${report.scores.quality_score}</div></div>
+    <div class="card"><div class="label">Clause Coverage</div><div class="value">${report.findings.clause_coverage.coverage_percent}%</div></div>
+    <div class="card"><div class="label">Findings</div><div class="value">${report.findings.top_risks.length}</div></div>
+  </div>
+
+  <section>
+    <div class="label">Executive Review</div>
+    <h2>${escapeHtml(report.summary.reviewer_verdict)}</h2>
+    <p>${escapeHtml(report.summary.executive_summary)}</p>
+    <div class="notice"><strong>Recommended next action:</strong><br/>${escapeHtml(report.summary.next_best_action)}</div>
+  </section>
+
+  <section>
+    <div class="label">Top Risks</div>
+    <ul>${risks}</ul>
+  </section>
+
+  <section>
+    <div class="label">Action Plan</div>
+    <ul>${actions}</ul>
+  </section>
+
+  <section>
+    <div class="label">Suggested Rewrites</div>
+    <ul>${rewrites}</ul>
+  </section>
+
+  <section>
+    <div class="label">AI Review Layer</div>
+    <p>${escapeHtml(report.ai_review.executive_review)}</p>
+    <p><em>${escapeHtml(report.ai_review.user_warning)}</em></p>
+  </section>
+</body>
+</html>`;
+
+    const blob = new Blob([html], {
+      type: "text/html",
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -92,6 +183,13 @@ export default function HomePage() {
     setFile(null);
     setError("");
     setStatusMessage("Sample report loaded.");
+  }
+
+  function clearReport() {
+    setReport(null);
+    setFile(null);
+    setError("");
+    setStatusMessage("Upload a PDF, DOCX, or TXT document.");
   }
 
   return (
@@ -129,14 +227,15 @@ export default function HomePage() {
           <h2>Upload file</h2>
           <p className="muted">Supports PDF, DOCX, and TXT documents.</p>
 
-          <input
-            className="file-input"
-            type="file"
-            accept=".pdf,.docx,.txt"
-            onChange={(event) => setFile(event.target.files?.[0] || null)}
-          />
-
-          <p className="file-name">{file ? file.name : statusMessage}</p>
+          <label className="upload-dropzone">
+            <input
+              type="file"
+              accept=".pdf,.docx,.txt"
+              onChange={(event) => setFile(event.target.files?.[0] || null)}
+            />
+            <span>{file ? "Document selected" : "Choose document"}</span>
+            <strong>{file ? file.name : statusMessage}</strong>
+          </label>
 
           <button className="primary-button" onClick={handleAnalyze} disabled={loading || !file}>
             {loading ? "Analyzing..." : "Run analysis"}
@@ -217,9 +316,14 @@ export default function HomePage() {
           </div>
 
           <div className="report-actions">
-            <button onClick={copyExecutiveSummary}>{copied ? "Copied summary" : "Copy executive summary"}</button>
-            <button onClick={downloadReport}>Download report</button>
-            <button onClick={printReport}>Print report</button>
+            <div>
+              <strong>{report.debug?.demo ? "Sample report loaded" : "Analysis report ready"}</strong>
+              <span>{report.document.original_filename}</span>
+            </div>
+            <button onClick={copyExecutiveSummary}>{copied ? "Copied summary" : "Copy summary"}</button>
+            <button onClick={downloadReport}>Download HTML</button>
+            <button onClick={printReport}>Print</button>
+            <button onClick={clearReport}>Clear</button>
           </div>
 
           <div className="panel wide">

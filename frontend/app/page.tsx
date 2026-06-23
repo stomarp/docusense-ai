@@ -68,8 +68,8 @@ export default function HomePage() {
     window.print();
   }
 
-  function escapeHtml(value: string) {
-    return value
+  function escapeHtml(value: string | number | null | undefined) {
+    return String(value ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")

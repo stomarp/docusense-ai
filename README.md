@@ -15,7 +15,7 @@ The product helps users review HR policies, school policies, contracts, leases, 
 
 | Area | Link |
 |---|---|
-| GitHub Repo | https://github.com/stomarp/docuguard-hr |
+| GitHub Repo | https://github.com/stomarp/docusense-ai |
 | Live Demo | Coming soon |
 | Frontend | `frontend/` |
 | Backend | `backend/` |

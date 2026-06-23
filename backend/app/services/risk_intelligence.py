@@ -12,6 +12,14 @@ from __future__ import annotations
 
 
 DOCUMENT_TYPE_KEYWORDS = {
+    "hr_policy_manual": [
+        "human resources policy manual", "hr policy manual", "policy manual",
+        "employee handbook", "employment policies", "general policies",
+        "equal employment opportunity", "harassment", "probationary period",
+        "performance evaluations", "telecommuting policy", "compensation policies",
+        "leave coverage policies", "family and medical leave", "sick leave",
+        "military leave", "personnel files", "disciplinary action"
+    ],
     "education_hr_policy": [
         "school", "teacher", "staff", "employee group", "employee groups",
         "non-exempt", "exempt", "classified", "certificated", "district",
@@ -42,6 +50,7 @@ DOCUMENT_TYPE_KEYWORDS = {
 }
 
 DOCUMENT_TYPE_LABELS = {
+    "hr_policy_manual": "HR Policy Manual",
     "hr_policy": "HR Policy",
     "lease_agreement": "Lease Agreement",
     "offer_letter": "Offer Letter",
@@ -52,6 +61,16 @@ DOCUMENT_TYPE_LABELS = {
 }
 
 EXPECTED_CLAUSES = {
+    "hr_policy_manual": {
+        "Equal Employment Opportunity": ["equal employment opportunity", "eeo", "non-discrimination", "discrimination"],
+        "Harassment / Conduct": ["harassment", "conduct", "disciplinary", "workplace behavior"],
+        "Employment Authorization / Hiring": ["employment authorization", "i-9", "recruitment", "selection", "hiring"],
+        "Performance Evaluation": ["performance evaluation", "employee evaluation", "goals", "review period"],
+        "Compensation / Pay": ["compensation", "salary", "pay period", "overtime", "payroll"],
+        "Leave / Time Off": ["leave", "annual leave", "sick leave", "family and medical leave", "fmla"],
+        "Remote Work / Telecommuting": ["telecommuting", "remote work", "work from home", "alternate work location"],
+        "Confidentiality / Personnel Files": ["confidentiality", "personnel files", "personal information", "records"],
+    },
     "education_hr_policy": {
         "Employee Group / Classification": ["employee group", "employee groups", "exempt", "non-exempt", "classified", "certificated"],
         "Compensation / Salary Schedule": ["salary", "salary schedule", "pay", "compensation", "wage"],
@@ -187,6 +206,26 @@ def detect_document_type(text: str, filename: str = "") -> dict:
     if any(signal in combined_text for signal in education_signals):
         scores["education_hr_policy"] = scores.get("education_hr_policy", 0) + 10
 
+    hr_manual_signals = [
+        "human resources policy manual",
+        "hr policy manual",
+        "employment policies",
+        "compensation policies",
+        "leave coverage policies",
+        "telecommuting policy",
+        "performance evaluations",
+        "family and medical leave",
+        "sick leave",
+        "personnel files",
+    ]
+    if any(signal in combined_text for signal in hr_manual_signals):
+        scores["hr_policy_manual"] = scores.get("hr_policy_manual", 0) + 30
+
+        # Education words describe the institution/domain, but the document type
+        # should still be HR Policy Manual when the manual structure is explicit.
+        if "education_hr_policy" in scores:
+            scores["education_hr_policy"] = max(0, scores.get("education_hr_policy", 0) - 8)
+
     offer_strong_signals = [
         "we are pleased to offer", "offer you", "position of",
         "start date", "employment offer", "base salary", "compensation"
@@ -250,24 +289,122 @@ def build_clause_coverage(text: str, document_type: str) -> dict:
 
 
 def extract_language_risks(text: str) -> list[dict]:
+    import re
+
     lower_text = normalize_text(text)
+    word_count = max(1, len(re.findall(r"\b\w+\b", lower_text)))
+
+    rules = [
+        {
+            "phrase": "without notice",
+            "category": "Unilateral action",
+            "severity": "High",
+            "impact": 12,
+            "recommendation": "Clarify notice periods, exceptions, and user rights.",
+        },
+        {
+            "phrase": "sole discretion",
+            "category": "Unilateral discretion",
+            "severity": "High",
+            "impact": 10,
+            "recommendation": "Add objective standards and dispute/review rights.",
+        },
+        {
+            "phrase": "at management discretion",
+            "category": "Management discretion",
+            "severity": "Medium",
+            "impact": 8,
+            "recommendation": "Define the approving role, criteria, and review process.",
+        },
+        {
+            "phrase": "as needed",
+            "category": "Unclear trigger",
+            "severity": "Medium",
+            "impact": 5,
+            "recommendation": "Define who decides, when it applies, and what standard is used.",
+        },
+        {
+            "phrase": "reasonable",
+            "category": "Subjective standard",
+            "severity": "Low",
+            "impact": 3,
+            "recommendation": "Define measurable timelines, thresholds, or examples.",
+        },
+        {
+            "phrase": "might",
+            "category": "Uncertain wording",
+            "severity": "Low",
+            "impact": 2,
+            "recommendation": "Replace uncertain wording with specific conditions when appropriate.",
+        },
+        {
+            "phrase": "may",
+            "category": "Optional wording",
+            "severity": "Low",
+            "impact": 2,
+            "recommendation": "Spot-check frequent optional wording, but do not treat every occurrence as a defect.",
+        },
+    ]
+
     risks = []
 
-    for rule in RISK_LANGUAGE_RULES:
-        count = lower_text.count(rule["phrase"])
-        if count:
-            risks.append({
-                "type": "risky_language",
-                "phrase": rule["phrase"],
-                "count": count,
-                "severity": rule["severity"],
-                "category": rule["category"],
-                "message": f"'{rule['phrase']}' appears {count} time(s).",
-                "recommendation": rule["recommendation"],
-            })
+    for rule in rules:
+        phrase = rule["phrase"]
+        pattern = r"\b" + re.escape(phrase) + r"\b"
+        count = len(re.findall(pattern, lower_text))
 
-    return risks
+        if count == 0:
+            continue
 
+        # Long HR manuals naturally contain many policy words like "may".
+        # We cap the risk contribution so a 60-page manual is not punished
+        # just because common legal/policy language appears often.
+        if phrase == "may":
+            capped_count = min(count, 3)
+            if word_count > 8000:
+                severity = "Low"
+                impact = 2
+                message = (
+                    f"Frequent optional wording detected ({count} occurrence(s)); "
+                    "spot-check mandatory sections instead of treating every occurrence as high risk."
+                )
+            else:
+                severity = rule["severity"]
+                impact = capped_count * rule["impact"]
+                message = f"'{phrase}' appears {count} time(s)."
+        elif phrase in ["might", "reasonable"]:
+            capped_count = min(count, 4)
+            severity = rule["severity"]
+            impact = capped_count * rule["impact"]
+            message = f"'{phrase}' appears {count} time(s)."
+        else:
+            capped_count = min(count, 3)
+            severity = rule["severity"]
+            impact = capped_count * rule["impact"]
+            message = f"'{phrase}' appears {count} time(s)."
+
+        risks.append({
+            "phrase": phrase,
+            "category": rule["category"],
+            "severity": severity,
+            "count": count,
+            "capped_count": capped_count,
+            "impact": impact,
+            "message": message,
+            "recommendation": rule["recommendation"],
+        })
+
+    severity_rank = {"High": 3, "Medium": 2, "Low": 1}
+    risks.sort(
+        key=lambda item: (
+            severity_rank.get(item.get("severity", "Low"), 1),
+            item.get("impact", 0),
+            item.get("count", 0),
+        ),
+        reverse=True,
+    )
+
+    return risks[:8]
 
 def extract_key_obligations(text: str) -> list[dict]:
     keywords = [
@@ -318,11 +455,49 @@ def severity_points(severity: str) -> int:
     }.get(severity.upper(), 3)
 
 
-def calculate_intelligence_score(clause_coverage: dict, language_risks: list[dict]) -> dict:
-    missing_clause_penalty = clause_coverage["missing_clause_count"] * 12
-    language_penalty = sum(severity_points(risk["severity"]) * risk["count"] for risk in language_risks)
-    risk_score = min(100, missing_clause_penalty + language_penalty)
-    quality_score = max(0, 100 - risk_score)
+def calculate_intelligence_score(*args, **kwargs) -> dict:
+    clause_coverage = kwargs.get("clause_coverage")
+    language_risks = kwargs.get("language_risks")
+    key_obligations = kwargs.get("key_obligations")
+
+    if clause_coverage is None and len(args) >= 1:
+        clause_coverage = args[0]
+    if language_risks is None and len(args) >= 2:
+        language_risks = args[1]
+    if key_obligations is None and len(args) >= 3:
+        key_obligations = args[2]
+
+    clause_coverage = clause_coverage or {}
+    language_risks = language_risks or []
+    key_obligations = key_obligations or []
+
+    coverage_percent = clause_coverage.get("coverage_percent", 0) or 0
+    missing_clauses = clause_coverage.get("missing_clauses", []) or []
+
+    missing_penalty = min(45, len(missing_clauses) * 12)
+    coverage_penalty = max(0, round((100 - coverage_percent) * 0.35))
+    language_penalty = min(40, sum(risk.get("impact", 0) for risk in language_risks))
+
+    # Small positive credit for clear obligations and strong clause coverage.
+    obligation_credit = min(8, len(key_obligations))
+    coverage_credit = 8 if coverage_percent >= 80 else 0
+    complete_manual_credit = 10 if coverage_percent == 100 and not missing_clauses else 0
+
+    raw_score = missing_penalty + coverage_penalty + language_penalty
+    risk_score = max(0, min(100, raw_score - obligation_credit - coverage_credit - complete_manual_credit))
+
+    high_risk_count = sum(1 for risk in language_risks if risk.get("severity") == "High")
+    medium_risk_count = sum(1 for risk in language_risks if risk.get("severity") == "Medium")
+
+    # Product calibration:
+    # A document with strong clause coverage can still require attention if it contains
+    # high-impact phrases such as "sole discretion" or "without notice".
+    if high_risk_count >= 2 and risk_score < 35:
+        risk_score = 35
+    elif high_risk_count == 1 and risk_score < 28:
+        risk_score = 28
+    elif medium_risk_count >= 2 and risk_score < 25:
+        risk_score = 25
 
     if risk_score >= 75:
         risk_level = "Critical"
@@ -333,61 +508,113 @@ def calculate_intelligence_score(clause_coverage: dict, language_risks: list[dic
     else:
         risk_level = "Low"
 
+    # Quality should not simply be 100-risk. A complete document with targeted wording risks
+    # can still be high quality.
+    quality_score = round((coverage_percent * 0.55) + ((100 - risk_score) * 0.45))
+    quality_score = max(0, min(100, quality_score))
+
+    drivers = []
+
+    if missing_clauses:
+        drivers.append({
+            "factor": "Missing expected clauses",
+            "impact": missing_penalty,
+            "explanation": "Expected sections are missing or not clearly labeled.",
+        })
+
+    if language_risks:
+        drivers.append({
+            "factor": "Risky or ambiguous language",
+            "impact": language_penalty,
+            "explanation": "Risk language is capped and calibrated so long documents are not over-penalized.",
+        })
+
+    if coverage_percent >= 80:
+        drivers.append({
+            "factor": "Strong clause coverage",
+            "impact": -coverage_credit,
+            "explanation": "The document includes most expected sections for this document type.",
+        })
+
     return {
         "risk_score": risk_score,
-        "quality_score": quality_score,
         "risk_level": risk_level,
-        "missing_clause_penalty": missing_clause_penalty,
+        "quality_score": quality_score,
+        "coverage_penalty": coverage_penalty,
+        "missing_clause_penalty": missing_penalty,
         "language_risk_penalty": language_penalty,
+        "obligation_credit": obligation_credit,
+        "coverage_credit": coverage_credit,
+        "drivers": drivers,
     }
 
+def build_top_risks(*args, **kwargs) -> list[dict]:
+    clause_coverage = kwargs.get("clause_coverage")
+    language_risks = kwargs.get("language_risks")
 
-def build_top_risks(clause_coverage: dict, language_risks: list[dict]) -> list[dict]:
-    risks = []
+    if clause_coverage is None and len(args) >= 1:
+        clause_coverage = args[0]
+    if language_risks is None and len(args) >= 2:
+        language_risks = args[1]
 
-    for item in clause_coverage["missing"]:
-        risks.append({
+    clause_coverage = clause_coverage or {}
+    language_risks = language_risks or []
+
+    top_risks = []
+
+    for clause in clause_coverage.get("missing_clauses", [])[:3]:
+        top_risks.append({
             "type": "missing_clause",
-            "severity": item["severity"],
-            "message": f"Missing clause: {item['clause']}",
-            "recommendation": item["recommendation"],
+            "severity": "High",
+            "message": f"Missing clause: {clause}",
+            "recommendation": f"Add a clear {clause} clause.",
         })
 
     for risk in language_risks:
-        risks.append({
-            "type": risk["type"],
-            "severity": risk["severity"],
-            "message": risk["message"],
-            "recommendation": risk["recommendation"],
+        top_risks.append({
+            "type": "language_risk",
+            "severity": risk.get("severity", "Low"),
+            "message": risk.get("message", f"{risk.get('phrase', 'Risky wording')} detected."),
+            "recommendation": risk.get("recommendation", "Clarify this wording."),
         })
 
-    rank = {"HIGH": 3, "MEDIUM": 2, "LOW": 1}
-    return sorted(risks, key=lambda item: rank.get(item["severity"], 0), reverse=True)[:8]
+    severity_rank = {"High": 3, "Medium": 2, "Low": 1}
+    top_risks.sort(
+        key=lambda item: severity_rank.get(item.get("severity", "Low"), 1),
+        reverse=True,
+    )
 
+    return top_risks[:6]
 
-def build_action_plan(top_risks: list[dict]) -> list[dict]:
+def build_action_plan(*args, **kwargs) -> list[dict]:
+    top_risks = kwargs.get("top_risks")
+    if top_risks is None and len(args) >= 1:
+        top_risks = args[0]
+
+    top_risks = top_risks or []
     actions = []
 
-    for risk in top_risks:
-        priority = "High" if risk["severity"] == "HIGH" else "Medium"
-        if risk["severity"] == "LOW":
-            priority = "Low"
+    for risk in top_risks[:6]:
+        severity = risk.get("severity", "Medium")
+        recommendation = risk.get("recommendation", "Clarify this issue.")
+        message = risk.get("message", "Risk finding detected.")
+
+        priority = "High" if severity == "High" else "Medium" if severity == "Medium" else "Low"
 
         actions.append({
             "priority": priority,
-            "action": risk["recommendation"],
-            "reason": risk["message"],
+            "action": recommendation,
+            "reason": message,
         })
 
     if not actions:
         actions.append({
             "priority": "Low",
-            "action": "Perform a final human review before approval or signature.",
-            "reason": "No major automated risk findings were detected.",
+            "action": "No immediate high-priority action detected.",
+            "reason": "The document includes the expected clauses and no major risk language was found.",
         })
 
-    return actions[:8]
-
+    return actions
 
 def build_ai_review_notes(document_label: str, score: dict, top_risks: list[dict]) -> dict:
     if score["risk_level"] in ["Critical", "High"]:
@@ -410,14 +637,51 @@ def build_ai_review_notes(document_label: str, score: dict, top_risks: list[dict
     }
 
 
-def build_executive_summary(document_label: str, score: dict, clause_coverage: dict, language_risks: list[dict]) -> str:
+def build_executive_summary(*args, **kwargs) -> str:
+    classification = kwargs.get("classification")
+    risk_scores = kwargs.get("risk_scores")
+    clause_coverage = kwargs.get("clause_coverage")
+    language_risks = kwargs.get("language_risks")
+
+    if classification is None and len(args) >= 1:
+        classification = args[0]
+    if risk_scores is None and len(args) >= 2:
+        risk_scores = args[1]
+    if clause_coverage is None and len(args) >= 3:
+        clause_coverage = args[2]
+    if language_risks is None and len(args) >= 4:
+        language_risks = args[3]
+
+    if isinstance(classification, dict):
+        label = classification.get("label", "General Document")
+    else:
+        label = str(classification or "General Document")
+
+    risk_scores = risk_scores or {}
+    clause_coverage = clause_coverage or {}
+    language_risks = language_risks or []
+
+    risk_level = risk_scores.get("risk_level", "Unknown")
+    risk_score = risk_scores.get("risk_score", "N/A")
+    quality_score = risk_scores.get("quality_score", "N/A")
+    coverage = clause_coverage.get("coverage_percent", 0)
+    missing_count = len(clause_coverage.get("missing_clauses", []) or [])
+
+    if risk_level in ["Low", "Medium"] and coverage >= 80:
+        verdict = "This document appears structurally complete and needs targeted wording review before final use."
+    elif risk_level == "High":
+        verdict = "This document should be reviewed before approval because several issues may affect interpretation or enforcement."
+    elif risk_level == "Critical":
+        verdict = "This document should not be approved until the highest-priority findings are reviewed."
+    else:
+        verdict = "This document was analyzed successfully."
+
     return (
-        f"DocuSense classified this document as {document_label}. "
-        f"The risk level is {score['risk_level']} with a risk score of {score['risk_score']}/100 "
-        f"and a quality score of {score['quality_score']}/100. "
-        f"Clause coverage is {clause_coverage['coverage_percent']}%, with "
-        f"{clause_coverage['missing_clause_count']} missing expected clause(s) and "
-        f"{len(language_risks)} risky language pattern(s) detected."
+        f"{verdict} DocuSense classified this document as {label}. "
+        f"The calibrated risk level is {risk_level} with a risk score of {risk_score}/100 "
+        f"and a quality score of {quality_score}/100. Clause coverage is {coverage}%, "
+        f"with {missing_count} missing expected clause(s) and "
+        f"{len(language_risks)} prioritized language finding(s)."
     )
 
 

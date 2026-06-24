@@ -3,7 +3,7 @@
 This guide explains how to deploy DocuSense AI with:
 
 - Backend API on Render
-- PostgreSQL on Render
+- PostgreSQL on Neon
 - Frontend on Vercel
 
 ## Deployment Architecture
@@ -18,7 +18,7 @@ Vercel Frontend
 Render FastAPI Backend
   |
   v
-Render PostgreSQL
+Neon PostgreSQL
 ```
 
 ## Backend: Render
@@ -35,16 +35,12 @@ Use the root `render.yaml` file to create a Render Blueprint.
 
 ### Render database
 
-The Blueprint also creates:
-
-- Database name: `docusense`
-- User: `docusense`
-- Service name: `docusense-ai-db`
+The database is created separately in Neon. Copy the Neon PostgreSQL connection string and paste it into Render as the `DATABASE_URL` environment variable.
 
 ### Required backend environment variables
 
 ```text
-DATABASE_URL=provided by Render PostgreSQL
+DATABASE_URL=provided by Neon PostgreSQL
 ENVIRONMENT=production
 APP_ENV=production
 LOG_LEVEL=info
@@ -91,7 +87,7 @@ Smoke check passed.
 ## Deployment Checklist
 
 - Render Blueprint created
-- Render PostgreSQL database created
+- Neon PostgreSQL database created
 - Backend health check passes
 - Vercel frontend deploys successfully
 - `NEXT_PUBLIC_API_BASE_URL` points to Render backend

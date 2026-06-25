@@ -176,6 +176,16 @@ Users can:
 - Print the report
 - Clear the report and start again
 
+## Production API
+
+The deployed backend exposes a root route and health check:
+
+```text
+https://docusense-ai-api-vg1h.onrender.com/
+https://docusense-ai-api-vg1h.onrender.com/health
+```
+
+The root route returns product metadata, while `/health` is used by Render health checks and the production smoke test.
 ## API Overview
 
 ### Health Check

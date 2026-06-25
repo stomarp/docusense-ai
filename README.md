@@ -1,5 +1,7 @@
 # DocuSense AI
 
+[![CI](https://github.com/stomarp/docusense-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/stomarp/docusense-ai/actions/workflows/ci.yml)
+
 DocuSense AI is a deployed full-stack document risk intelligence platform that analyzes PDF, DOCX, and TXT documents and generates structured review reports with document classification, clause coverage, calibrated risk scoring, top findings, suggested rewrites, and exportable summaries.
 
 The project is built as a practical SaaS-style workflow, not a chatbot wrapper. Users can upload a document, run analysis, review prioritized risks, copy the executive summary, print the report, or download an HTML report.

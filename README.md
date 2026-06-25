@@ -16,6 +16,20 @@ The project is built as a practical SaaS-style workflow, not a chatbot wrapper. 
 | GitHub Repo | https://github.com/stomarp/docusense-ai |
 | Architecture Doc | docs/ARCHITECTURE.md |
 | Deployment Guide | docs/DEPLOYMENT_GUIDE.md |
+| Recruiter Brief | docs/RECRUITER_BRIEF.md |
+| Demo Script | docs/DEMO_SCRIPT.md |
+
+## For Recruiters
+
+The fastest way to review this project:
+
+1. Open the live app: https://docusense-ai-six.vercel.app
+2. Click `Try sample report`
+3. Review the report dashboard, top risks, suggested rewrites, and export actions
+4. Read the short recruiter brief: `docs/RECRUITER_BRIEF.md`
+5. Check CI status from the README badge
+
+This project is designed to show full-stack product engineering, backend API design, typed frontend contracts, deployment, and practical AI-style workflow design.
 
 ## Recruiter Scan
 

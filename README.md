@@ -1,70 +1,134 @@
 # DocuSense AI
 
-DocuSense AI is a full-stack document risk intelligence platform that analyzes PDF, DOCX, and TXT documents and turns them into structured risk reports.
+DocuSense AI is a deployed full-stack document risk intelligence platform that analyzes PDF, DOCX, and TXT documents and generates structured review reports with document classification, clause coverage, calibrated risk scoring, top findings, suggested rewrites, and exportable summaries.
 
-The product helps users review HR policies, school policies, contracts, leases, offer letters, and compliance documents by combining document upload, text extraction, document classification, clause coverage analysis, calibrated risk scoring, AI-style review notes, suggested rewrites, and exportable reports.
+The project is built as a practical SaaS-style workflow, not a chatbot wrapper. Users can upload a document, run analysis, review prioritized risks, copy the executive summary, print the report, or download an HTML report.
 
-> Status: Active portfolio project  
-> Live demo: Coming soon  
-> Backend: FastAPI + PostgreSQL  
-> Frontend: Next.js + TypeScript + Zod
-
----
-
-## Quick Links
+## Live Demo
 
 | Area | Link |
 |---|---|
+| Live App | https://docusense-ai-six.vercel.app |
+| Production API | https://docusense-ai-api-vg1h.onrender.com |
+| API Health Check | https://docusense-ai-api-vg1h.onrender.com/health |
 | GitHub Repo | https://github.com/stomarp/docusense-ai |
-| Live Demo | Coming soon |
-| Frontend | `frontend/` |
-| Backend | `backend/` |
-| API Docs | `http://127.0.0.1:8010/docs` |
-| Deployment Guide | `docs/DEPLOYMENT_GUIDE.md` |
-| Local Frontend | `http://localhost:3001` |
-
----
+| Architecture Doc | docs/ARCHITECTURE.md |
+| Deployment Guide | docs/DEPLOYMENT_GUIDE.md |
 
 ## Recruiter Scan
 
-DocuSense AI demonstrates full-stack product engineering, backend API design, document processing, ML-assisted classification, schema-safe frontend development, and product thinking.
+DocuSense AI demonstrates full-stack software engineering, backend API design, document processing, risk-scoring logic, schema-safe frontend development, deployment, and product thinking.
 
-### What this project demonstrates
+### Highlights
 
-- Full-stack SaaS-style product development
-- FastAPI backend architecture
-- PostgreSQL-backed document/report workflow
-- PDF/DOCX/TXT upload and text extraction
-- Document classification and clause coverage
-- Calibrated long-document risk scoring
-- AI-style executive review and suggested rewrites
-- Next.js dashboard with TypeScript
-- Runtime API validation using Zod
-- Sample demo mode for recruiter-friendly testing
-- Copy summary, print report, and downloadable HTML export
-
----
+- Deployed full-stack app with Next.js frontend, FastAPI backend, and Neon PostgreSQL
+- PDF/DOCX/TXT upload and document text extraction workflow
+- Document classification for HR policies, contracts, leases, offer letters, compliance docs, and general documents
+- Clause coverage analysis and missing-section detection
+- Calibrated long-document risk scoring to avoid false high-risk results
+- AI-style executive review, next-best action, suggested rewrites, and review checklist
+- TypeScript frontend with Zod runtime API validation
+- Sample report mode for recruiter-friendly demos
+- Copy summary, print report, and downloadable HTML report export
+- Production deployment on Vercel + Render + Neon
 
 ## Product Problem
 
-Reviewing long documents like HR policy manuals, contracts, offer letters, and compliance documents is time-consuming. Important risks can be hidden inside vague language, missing clauses, unclear obligations, or inconsistent policy wording.
+Long documents such as HR policy manuals, contracts, offer letters, leases, and compliance documents are difficult to review quickly. Important issues can be hidden inside vague wording, missing clauses, unclear obligations, or risky discretionary language.
 
 DocuSense AI helps users quickly answer:
 
 - What type of document is this?
-- What important sections are present or missing?
+- Which important sections are present or missing?
 - What language could create risk or ambiguity?
-- What should be reviewed first?
+- Which findings should be reviewed first?
 - What rewrite suggestions would make the document clearer?
 - Can I export a structured review report?
 
----
+## Demo Flow
 
-## Product Features
+1. Open the live app.
+2. Click `Try sample report` or upload a PDF/DOCX/TXT document.
+3. Run analysis.
+4. Review the detected document type, risk score, quality score, clause coverage, and top findings.
+5. Review suggested rewrites and AI-style review notes.
+6. Copy the summary, print the report, or download the HTML report.
 
-### Document Upload and Text Extraction
+## Screenshots
 
-Users can upload PDF, DOCX, and TXT documents. The backend extracts text and prepares it for analysis.
+### Landing and Upload Flow
+
+![DocuSense AI landing and upload flow](docs/screenshots/landing.png)
+
+### Uploaded Document State
+
+![DocuSense AI uploaded document state](docs/screenshots/upload-selected.png)
+
+### Report Dashboard
+
+![DocuSense AI report dashboard](docs/screenshots/report-dashboard.png)
+
+### Top Risks and Action Plan
+
+![DocuSense AI top risks and action plan](docs/screenshots/top-risks-action-plan.png)
+
+### Suggested Rewrites and AI Review
+
+![DocuSense AI suggested rewrites and AI review](docs/screenshots/suggested-rewrites-ai-review.png)
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[User uploads PDF/DOCX/TXT] --> B[Next.js Frontend on Vercel]
+    B --> C[FastAPI Backend on Render]
+    C --> D[Document Text Extraction]
+    D --> E[Document Classification]
+    E --> F[Clause Coverage Engine]
+    F --> G[Risk Scoring Engine]
+    G --> H[AI-Style Review Layer]
+    H --> I[Structured Report Response]
+    I --> J[Zod Runtime Validation]
+    J --> K[Report Dashboard]
+    K --> L[Copy / Print / Download HTML]
+    C --> M[Neon PostgreSQL]
+```
+
+## Tech Stack
+
+### Backend
+
+- Python
+- FastAPI
+- SQLAlchemy
+- PostgreSQL
+- Pydantic
+- Uvicorn
+- PDF/DOCX/TXT text extraction
+- Rule-based risk intelligence engine
+- ML-ready document classification signals
+
+### Frontend
+
+- Next.js
+- TypeScript
+- Zod
+- CSS
+- Browser-based HTML export
+
+### Deployment
+
+- Vercel for frontend
+- Render for FastAPI backend
+- Neon PostgreSQL for production database
+- Render Blueprint configuration
+- Production smoke test script
+
+## Core Features
+
+### Document Upload and Extraction
+
+Users can upload PDF, DOCX, and TXT documents. The backend stores document metadata, extracts text, and prepares the content for analysis.
 
 ### Document Classification
 
@@ -89,71 +153,28 @@ DocuSense AI uses calibrated scoring so long documents are not unfairly punished
 
 ### AI-Style Review Layer
 
-The system generates structured review guidance including executive summary, reviewer verdict, user warning, next-best action, suggested rewrites, and review checklist.
+The system generates structured review guidance including:
 
-The current implementation is deterministic and LLM-ready. It is designed so an external LLM can be added later without changing the frontend contract.
+- Executive summary
+- Reviewer verdict
+- User warning / disclaimer
+- Next-best action
+- Suggested rewrites
+- Review checklist
+
+The current review layer is deterministic and LLM-ready. It is designed so an external LLM can be added later without changing the frontend contract.
 
 ### Export Workflow
 
-Users can try a sample report, copy the executive summary, download an HTML report, print the report, and clear the report.
+Users can:
 
----
+- Try a sample report
+- Copy the executive summary
+- Download an HTML report
+- Print the report
+- Clear the report and start again
 
-## Architecture
-
-```mermaid
-flowchart TD
-    A[User uploads PDF/DOCX/TXT] --> B[Next.js Frontend]
-    B --> C[FastAPI Upload Endpoint]
-    C --> D[File Storage]
-    C --> E[PostgreSQL Document Record]
-
-    B --> F[Analyze Endpoint]
-    F --> G[Text Extraction]
-    G --> H[Document Classification]
-    H --> I[Clause Coverage Engine]
-    I --> J[Risk Scoring Engine]
-    J --> K[AI-Style Review Layer]
-    K --> L[Structured Report Response]
-
-    L --> M[Zod Runtime Validation]
-    M --> N[Report Dashboard]
-    N --> O[Copy / Print / Download HTML]
-```
-
----
-
-## Tech Stack
-
-### Backend
-
-- Python
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
-- Pydantic
-- PDF/DOCX/TXT text extraction
-- Rule-based risk intelligence engine
-- ML-assisted document signals
-
-### Frontend
-
-- Next.js
-- TypeScript
-- Zod
-- CSS
-- Browser-based HTML export
-
-### Dev Tools
-
-- Docker Compose
-- Uvicorn
-- Git / GitHub
-- Local API docs with Swagger
-
----
-
-## API Flow
+## API Overview
 
 ### Health Check
 
@@ -188,8 +209,6 @@ GET /documents
 ```http
 GET /documents/{document_id}/reports
 ```
-
----
 
 ## Local Development
 
@@ -229,8 +248,6 @@ Frontend runs at:
 http://localhost:3001
 ```
 
----
-
 ## Validation and Build Checks
 
 ### Backend compile check
@@ -245,58 +262,31 @@ python3 -m py_compile backend/app/main.py backend/app/services/risk_intelligence
 npm --prefix frontend run build
 ```
 
----
+### Production smoke test
 
-## Screenshots
-
-### Landing and Upload Flow
-
-![DocuSense AI landing and upload flow](docs/screenshots/landing.png)
-
-### Uploaded Document State
-
-![DocuSense AI uploaded document state](docs/screenshots/upload-selected.png)
-
-### Report Dashboard
-
-![DocuSense AI report dashboard](docs/screenshots/report-dashboard.png)
-
-### Top Risks and Action Plan
-
-![DocuSense AI top risks and action plan](docs/screenshots/top-risks-action-plan.png)
-
-### Suggested Rewrites and AI Review
-
-![DocuSense AI suggested rewrites and AI review](docs/screenshots/suggested-rewrites-ai-review.png)
-
----
+```bash
+API_BASE_URL=https://docusense-ai-api-vg1h.onrender.com ./scripts/smoke_production.sh
+```
 
 ## What Makes This Different
 
 DocuSense AI is not a simple chatbot wrapper.
 
-It includes backend document processing, persistent upload/report workflow, classification logic, clause coverage engine, calibrated scoring, AI-style review layer, typed frontend contract, runtime validation, and exportable report workflow.
+It includes backend document processing, persistent upload/report workflow, classification logic, clause coverage analysis, calibrated scoring, AI-style review generation, typed frontend contracts, runtime validation, and an exportable report workflow.
 
 The product is designed around a realistic document review workflow rather than a single prompt-response interaction.
 
----
-
-## Limitations
+## Current Limitations
 
 - External LLM integration is not enabled yet
-- AI review layer is deterministic and LLM-ready
+- AI-style review layer is deterministic and LLM-ready
 - Legal/compliance outputs are informational and not legal advice
-- Classification uses weighted signals and can be improved with more labeled training data
+- Classification uses weighted signals and can be improved with more labeled data
 - HTML export is available; PDF export can be added later
-- Deployment is not completed yet
-
----
+- Authentication and team workspaces are not implemented yet
 
 ## Future Work
 
-- Deploy backend on Render
-- Deploy frontend on Vercel
-- Rename repository to `docusense-ai`
 - Add OpenAI-powered review mode
 - Add PDF report export
 - Add authentication
@@ -304,9 +294,8 @@ The product is designed around a realistic document review workflow rather than 
 - Add organization/team workspaces
 - Add backend tests for classification and scoring
 - Add CI checks for backend compile and frontend build
-
----
+- Add trained section-classifier model artifact for production ML inference
 
 ## Resume Summary
 
-DocuSense AI is a full-stack document risk intelligence platform built with FastAPI, PostgreSQL, Next.js, TypeScript, and Zod. It analyzes uploaded documents, classifies document type, detects clause gaps and risky language, generates calibrated risk scores, provides AI-style review recommendations, and exports structured reports.
+DocuSense AI is a deployed full-stack document risk intelligence platform built with FastAPI, PostgreSQL, Next.js, TypeScript, and Zod. It analyzes uploaded documents, classifies document type, detects clause gaps and risky language, generates calibrated risk scores, provides AI-style review recommendations, and exports structured reports.

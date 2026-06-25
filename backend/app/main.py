@@ -63,7 +63,7 @@ section_classifier = SectionClassifier()
 try:
     section_classifier.load()
 except Exception as e:
-    print(f"[ML] Section classifier not loaded: {e}")
+    print(f"[ML] Optional section classifier unavailable; using rule-based fallback signals. Details: {e}")
 
 
 # -------------------------------------------------------
@@ -591,6 +591,17 @@ def build_ml_summary(ml_sections: list[dict]) -> list[dict]:
 # -------------------------------------------------------
 # Health Endpoint
 # -------------------------------------------------------
+
+@app.get("/")
+def root():
+    return {
+        "app": "DocuSense AI",
+        "status": "running",
+        "message": "DocuSense AI document risk intelligence API is live.",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
 
 @app.get("/health")
 def health_check():

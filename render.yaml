@@ -18,6 +18,6 @@ services:
       - key: LLM_ENABLED
         value: "false"
       - key: FRONTEND_URL
-        value: https://your-vercel-app.vercel.app
+        value: https://docusense-ai-six.vercel.app
       - key: CORS_ORIGINS
-        value: https://your-vercel-app.vercel.app
+        value: https://docusense-ai-six.vercel.app

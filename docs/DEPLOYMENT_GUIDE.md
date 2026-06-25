@@ -45,8 +45,8 @@ ENVIRONMENT=production
 APP_ENV=production
 LOG_LEVEL=info
 LLM_ENABLED=false
-FRONTEND_URL=https://your-vercel-app.vercel.app
-CORS_ORIGINS=https://your-vercel-app.vercel.app
+FRONTEND_URL=https://docusense-ai-six.vercel.app
+CORS_ORIGINS=https://docusense-ai-six.vercel.app
 ```
 
 ## Frontend: Vercel
@@ -65,7 +65,7 @@ Install Command: npm install
 Required frontend environment variable:
 
 ```text
-NEXT_PUBLIC_API_BASE_URL=https://your-render-api.onrender.com
+NEXT_PUBLIC_API_BASE_URL=https://docusense-ai-api-vg1h.onrender.com
 ```
 
 ## Production Smoke Test
@@ -73,7 +73,7 @@ NEXT_PUBLIC_API_BASE_URL=https://your-render-api.onrender.com
 After Render deploys, run:
 
 ```bash
-API_BASE_URL=https://your-render-api.onrender.com ./scripts/smoke_production.sh
+API_BASE_URL=https://docusense-ai-api-vg1h.onrender.com ./scripts/smoke_production.sh
 ```
 
 Expected result:
